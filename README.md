@@ -7,12 +7,10 @@
     Connecting real-world emergency and social welfare needs with verified volunteers, NGOs, and community helpers — securely and responsibly.
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/Security-OWASP_Top_10_Hardened-24292e?style=flat" alt="OWASP Hardened" />
-    <img src="https://img.shields.io/badge/Privacy-DPDP_Act_2023_Compliant-24292e?style=flat" alt="DPDP Act 2023" />
-    <img src="https://img.shields.io/badge/Backend-Node.js_20_%7C_Express_%7C_TypeScript-24292e?style=flat" alt="Node.js" />
-    <img src="https://img.shields.io/badge/Frontend-React_18_%7C_Vite_%7C_TS-24292e?style=flat" alt="React" />
-    <img src="https://img.shields.io/badge/Mobile-Android_Native_%7C_Kotlin-24292e?style=flat" alt="Android" />
-    <img src="https://img.shields.io/badge/Container-Docker_Compose-24292e?style=flat" alt="Docker" />
+    <b>Security:</b> OWASP Top 10 Hardened &nbsp;|&nbsp; 
+    <b>Privacy:</b> DPDP Act 2023 Compliant &nbsp;|&nbsp; 
+    <b>Mobile:</b> Android Native (Kotlin) &nbsp;|&nbsp; 
+    <b>Web:</b> React 18 + Node.js 20
   </p>
 </p>
 
