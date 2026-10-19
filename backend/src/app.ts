@@ -5,6 +5,8 @@ import { securityHeaders } from './middleware/securityHeaders';
 import { apiLimiter } from './middleware/rateLimit';
 import { errorHandler } from './middleware/errorHandler';
 
+import { moderationRouter } from './modules/moderation/router';
+
 export const app = express();
 
 app.use(securityHeaders);
@@ -18,5 +20,8 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Root API router placeholder
+// Moderation & Community Safety Router
+app.use('/api/v1/moderation', moderationRouter);
+
 app.use(errorHandler);
+

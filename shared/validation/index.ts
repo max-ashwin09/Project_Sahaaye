@@ -16,3 +16,27 @@ export const reportNeedSchema = z.object({
   longitude: z.number().min(-180).max(180),
   isMinorInvolved: z.boolean().default(false),
 });
+
+export const moderationActionSchema = z.object({
+  targetType: z.enum(['USER', 'NEED', 'MEDIA']),
+  targetId: z.string().uuid(),
+  action: z.enum(['WARN', 'SUSPEND', 'BAN', 'CONTENT_TAKEDOWN']),
+  reason: z.string().min(5).max(1000),
+});
+
+export const submitAppealSchema = z.object({
+  actionId: z.string().uuid(),
+  statement: z.string().min(10).max(2000),
+});
+
+export const reviewAppealSchema = z.object({
+  status: z.enum(['APPROVED', 'REJECTED']),
+  resolutionNotes: z.string().min(3).max(1000).optional(),
+});
+
+export const contentTakedownSchema = z.object({
+  targetType: z.enum(['NEED', 'MEDIA']),
+  targetId: z.string().uuid(),
+  reason: z.string().min(5).max(1000),
+});
+

@@ -1,0 +1,10 @@
+process.env.NODE_ENV = 'test';
+process.env.PORT = '5001';
+process.env.DATABASE_URL = 'postgresql://sahaaye_user:sahaaye_password@localhost:5432/sahaaye_test_db';
+process.env.JWT_SECRET = 'supersecretjwtkeythatislongerthan32characters!!';
+process.env.REFRESH_TOKEN_SECRET = 'supersecretrefreshkeythatislongerthan32characters!!';
+process.env.COOKIE_SECRET = 'cookie_secret_minimum_16_chars';
+process.env.REDIS_HOST = 'localhost';
+process.env.REDIS_PORT = '6379';
+process.env.AI_SERVICE_URL = 'http://localhost:8000';
+process.env.CORS_ORIGIN = 'http://localhost:3000';
