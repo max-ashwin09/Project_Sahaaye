@@ -7,12 +7,12 @@
     Connecting real-world emergency and social welfare needs with verified volunteers, NGOs, and community helpers — securely and responsibly.
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/Security-OWASP_Top_10_Hardened-success?style=for-the-badge&logo=shield" alt="OWASP Hardened" />
-    <img src="https://img.shields.io/badge/Privacy-DPDP_Act_2023_Compliant-blue?style=for-the-badge" alt="DPDP Act 2023" />
-    <img src="https://img.shields.io/badge/Backend-Node.js_20_%7C_Express_%7C_TypeScript-339933?style=for-the-badge&logo=node.js" alt="Node.js" />
-    <img src="https://img.shields.io/badge/Frontend-React_18_%7C_Vite_%7C_TS-61DAFB?style=for-the-badge&logo=react" alt="React" />
-    <img src="https://img.shields.io/badge/Mobile-Android_Native_%7C_Kotlin-3DDC84?style=for-the-badge&logo=android" alt="Android" />
-    <img src="https://img.shields.io/badge/Container-Docker_Compose-2496ED?style=for-the-badge&logo=docker" alt="Docker" />
+    <img src="https://img.shields.io/badge/Security-OWASP_Top_10_Hardened-24292e?style=flat" alt="OWASP Hardened" />
+    <img src="https://img.shields.io/badge/Privacy-DPDP_Act_2023_Compliant-24292e?style=flat" alt="DPDP Act 2023" />
+    <img src="https://img.shields.io/badge/Backend-Node.js_20_%7C_Express_%7C_TypeScript-24292e?style=flat" alt="Node.js" />
+    <img src="https://img.shields.io/badge/Frontend-React_18_%7C_Vite_%7C_TS-24292e?style=flat" alt="React" />
+    <img src="https://img.shields.io/badge/Mobile-Android_Native_%7C_Kotlin-24292e?style=flat" alt="Android" />
+    <img src="https://img.shields.io/badge/Container-Docker_Compose-24292e?style=flat" alt="Docker" />
   </p>
 </p>
 
@@ -28,11 +28,13 @@
 7. [How to Run (Quickstart)](#-how-to-run-quickstart)
    - [Method 1: Run with Docker Compose (Recommended)](#method-1-run-with-docker-compose-recommended)
    - [Method 2: Run Locally for Development](#method-2-run-locally-for-development)
-8. [Environment Configuration (.env)](#-environment-configuration-env)
-9. [Automated Security Audits & Testing](#-automated-security-audits--testing)
-10. [API Overview](#-api-overview)
-11. [Legal & DPDP Compliance](#-legal--dpdp-compliance)
-12. [Contributing & Responsible Disclosure](#-contributing--responsible-disclosure)
+   - [Method 3: Build & Run Android Mobile App](#method-3-build--run-android-mobile-app)
+8. [Android Mobile Application](#-android-mobile-application)
+9. [Environment Configuration (.env)](#-environment-configuration-env)
+10. [Automated Security Audits & Testing](#-automated-security-audits--testing)
+11. [API Overview](#-api-overview)
+12. [Legal & DPDP Compliance](#-legal--dpdp-compliance)
+13. [Contributing & Responsible Disclosure](#-contributing--responsible-disclosure)
 
 ---
 
@@ -118,7 +120,7 @@ When community members encounter people in distress (abandoned seniors, underpri
 | :--- | :--- | :--- |
 | **Backend** | Node.js 20, Express, TypeScript | Modular RESTful API server |
 | **Frontend** | React 18, Vite, TypeScript | Fast, responsive modern web client |
-| **Mobile** | Kotlin, Android SDK 34, Jetpack | Native Android client with hardened security |
+| **Mobile** | Kotlin, Jetpack Compose, Material 3, Android SDK 35 | Native Android app with matching web branding, Indore live location map & radius filtering |
 | **Database** | PostgreSQL 15, PostGIS 3.3 | Geospatial spatial queries & relational storage |
 | **Cache & Queue**| Redis 7, BullMQ | Asynchronous media processing & rate-limiting |
 | **AI / Privacy** | Python 3.11, FastAPI, OpenCV, MediaPipe | Face-blurring, child detection, content moderation |
@@ -147,14 +149,27 @@ Project_Sahaaye/
 │       ├── context/            # ConsentContext (DPDP Act state manager)
 │       └── services/api.ts     # Cookie-based secure API wrapper
 │
-├── android/                    # Native Android mobile client
+├── android/                    # Native Android mobile client (Jetpack Compose)
 │   ├── build.gradle.kts        # Root Gradle build script
+│   ├── gradle.properties       # AndroidX & build configuration
+│   ├── gradlew                 # Gradle wrapper executable
 │   └── app/
-│       ├── proguard-rules.pro  # R8 code shrinking and symbol obfuscation
+│       ├── build.gradle.kts    # App module dependencies (Compose, Material 3, Coroutines)
 │       └── src/main/
-│           ├── AndroidManifest.xml
-│           ├── res/xml/network_security_config.xml # Disallows cleartext HTTP
-│           └── java/com/sahaaye/ # Domain, UI, Security, and Navigation layers
+│           ├── AndroidManifest.xml # Permissions (Location, Internet) & Launcher activity
+│           ├── res/
+│           │   ├── drawable/sahaaye_logo.png # Official SAHAAYE branding
+│           │   └── values/ (colors.xml, strings.xml, themes.xml)
+│           └── java/com/sahaaye/
+│               ├── MainActivity.kt           # Navigation Host (Dashboard <-> Nearby)
+│               ├── data/
+│               │   ├── model/NeedItem.kt     # NeedItem, StatCardModel, QuickActionModel
+│               │   └── repository/NeedsRepository.kt # Indore reference coordinates & Haversine distance calculator
+│               └── ui/
+│                   ├── theme/                # Color, Theme, Type (Web-matched palette)
+│                   ├── components/           # TopHeaderBar, WelcomeHeroCard, StatsRow, LiveMapCard, QuickActions
+│                   ├── dashboard/DashboardScreen.kt # Home Dashboard matching Web app
+│                   └── nearby/NearbyMapScreen.kt    # Interactive Canvas Map Explorer with radius & category filtering
 │
 ├── backend/                    # Core TypeScript API server
 │   ├── Dockerfile              # Non-root secure Node container
@@ -285,6 +300,57 @@ In a separate terminal:
 npm --prefix frontend run dev
 ```
 The Vite development server will open at `http://localhost:5173`.
+
+---
+
+### Method 3: Build & Run Android Mobile App
+
+The SAHAAYE mobile client is a native Android application built with **Kotlin** and **Jetpack Compose**.
+
+#### Prerequisites:
+- **JDK 17** (Temurin 17 or OpenJDK 17)
+- **Android SDK**: `platforms;android-35` and `build-tools;35.0.0`
+- An Android device (connected via USB or Wireless ADB) or Android Emulator
+
+#### Step 1: Build the Debug APK
+```bash
+cd android
+./gradlew assembleDebug
+```
+*The compiled APK will be generated at `android/app/build/outputs/apk/debug/app-debug.apk`.*
+
+#### Step 2: Install onto Device via ADB
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+#### Step 3: Launch the Native App
+```bash
+adb shell am start -n com.sahaaye/.MainActivity
+```
+
+---
+
+## 📱 Android Mobile Application
+
+The SAHAAYE Android application brings real-time community assistance directly to volunteers and citizens on the ground, maintaining strict parity with the web dashboard's visual theme, branding, and privacy standards.
+
+### ✨ Core Features Implemented:
+- **Theme & Branding Parity with Web App:**
+  - Pixel-matched color scheme (`BrandPrimary #2563EB`, `StatNearby #0D9488`, `CardSurface #FFFFFF`, `AppBackground #F8FAFC`).
+  - Official SAHAAYE logo in top header and launcher icon.
+  - Top Header Bar with location selector (`📍 Indore, MP`), notification badge (`12`), and profile avatar.
+  - Welcome Hero Card with motivational community quote.
+  - 4 Real-time Stat Cards (`28 Nearby Needs (+12%)`, `9 In Progress (+5%)`, `16 Completed (+26%)`, `64 Hours Contributed`).
+  - Quick Action Cards (Report a Need, Find Nearby Needs, My Reports, My Helping Activities).
+  - Bottom Navigation Bar (Dashboard, Nearby, Report, Activities, Profile).
+
+- **Interactive Nearby Needs Map Explorer:**
+  - **Location Centered:** Default reference coordinates centered in **Indore, MP** (`22.7196° N, 75.8577° E`) with a pulsing real-time location indicator (*"You are in Indore Center"*).
+  - **Distance Radius Filter Chips:** Quick toggles for `1km`, `3km`, `5km`, and `10km` with automatic Haversine distance calculations and instant dynamic result counts.
+  - **Category Filtering:** Filter needs across `All`, `Food` 🍚, `Medical` 💊, `Education` 📚, and `Shelter` 🏠.
+  - **Interactive Map Pins:** Tap any colored category pin to display an animated bottom slide-up preview card with distance, location name, description, **"Offer Help Now"** action, and directions.
+  - **Map & List View Toggles:** Seamless switching between visual map canvas and a detailed scrollable list of needs.
 
 ---
 
