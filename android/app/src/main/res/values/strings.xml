@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sahaaye</string>
+    <string name="tagline">People Help People</string>
+    <string name="user_name">Rohit</string>
+    <string name="user_role">Helper</string>
+    <string name="location_default">Indore, MP</string>
+    <string name="welcome_heading">Welcome Back, Rohit! 👋</string>
+    <string name="welcome_sub">Small actions create big changes. Let\'s keep making a difference.</string>
+    <string name="quote_banner">Helping people builds stronger communities.</string>
+
+    <!-- Stats -->
+    <string name="stat_nearby_needs">Nearby Needs</string>
+    <string name="stat_in_progress">In Progress</string>
+    <string name="stat_completed">Completed</string>
+    <string name="stat_community_rating">Community Rating</string>
+
+    <!-- Map & Actions -->
+    <string name="live_map">Live Map</string>
+    <string name="needs_near_you">Needs Near You</string>
+    <string name="view_all">View All →</string>
+    <string name="quick_actions">Quick Actions</string>
+    <string name="report_need">Report a Need</string>
+    <string name="find_nearby">Find Nearby Needs</string>
+    <string name="my_reports">My Reports</string>
+    <string name="my_activities">My Helping Activities</string>
+    <string name="be_helping_hand">Be a Helping Hand</string>
+    <string name="explore_needs">Explore Needs →</string>
+</resources>

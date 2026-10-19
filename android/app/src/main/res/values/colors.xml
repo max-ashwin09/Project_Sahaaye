@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand Primary Colors (Matching Sahaaye Web App) -->
+    <color name="brand_primary">#2563EB</color>
+    <color name="brand_primary_dark">#1D4ED8</color>
+    <color name="brand_primary_light">#EFF6FF</color>
+    <color name="brand_primary_hover">#1E40AF</color>
+
+    <!-- Category & Stat Accent Colors -->
+    <color name="stat_nearby">#0D9488</color>
+    <color name="stat_nearby_bg">#F0FDFA</color>
+    <color name="stat_progress">#F59E0B</color>
+    <color name="stat_progress_bg">#FFF7ED</color>
+    <color name="stat_completed">#10B981</color>
+    <color name="stat_completed_bg">#F0FDF4</color>
+    <color name="stat_rating">#7C3AED</color>
+    <color name="stat_rating_bg">#F5F3FF</color>
+    <color name="accent_rose">#E11D48</color>
+    <color name="accent_rose_bg">#FFF1F2</color>
+
+    <!-- Surface & Background -->
+    <color name="app_background">#F8FAFC</color>
+    <color name="card_surface">#FFFFFF</color>
+    <color name="border_subtle">#E2E8F0</color>
+    <color name="border_light">#F1F5F9</color>
+
+    <!-- Typography -->
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="text_muted">#94A3B8</color>
+    <color name="text_inverted">#FFFFFF</color>
+
+    <!-- Map Elements -->
+    <color name="map_bg_gradient_start">#E8F5E9</color>
+    <color name="map_bg_gradient_end">#C8E6C9</color>
+    <color name="map_road">#FFFFFF</color>
+    <color name="map_pulse_blue">#3B82F6</color>
+</resources>
