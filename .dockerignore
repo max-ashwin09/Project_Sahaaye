@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+.git
+.github
+.env
+.env.*
+storage/*
+!storage/.gitkeep
+android/
+docs/
+tests/
+*.md
+.DS_Store

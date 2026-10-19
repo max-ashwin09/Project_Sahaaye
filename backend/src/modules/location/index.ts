@@ -1,0 +1,2 @@
+// Module: location
+export {};

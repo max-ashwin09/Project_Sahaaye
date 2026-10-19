@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: sahaaye_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sahaaye_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sahaaye_password}
+      POSTGRES_DB: ${POSTGRES_DB:-sahaaye_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sahaaye_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal_network
+
+  ai-services:
+    build:
+      context: ./ai-services
+    container_name: sahaaye_ai
+    restart: unless-stopped
+    networks:
+      - internal_network
+    environment:
+      - INTERNAL_SECRET=${AI_INTERNAL_SECRET}
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+  backend:
+    build:
+      context: ./backend
+    container_name: sahaaye_backend
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+      - ai-services
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://sahaaye_user:sahaaye_password@db:5432/sahaaye_db
+      - REDIS_HOST=redis
+      - AI_SERVICE_URL=http://ai-services:8000
+    networks:
+      - internal_network
+      - edge_network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: sahaaye_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - edge_network
+
+networks:
+  internal_network:
+    internal: true
+  edge_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

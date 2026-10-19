@@ -1,0 +1,2 @@
+// Module: privacy/consent
+export {};

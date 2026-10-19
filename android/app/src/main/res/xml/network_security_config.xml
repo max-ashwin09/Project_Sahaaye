@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Strictly disallow all cleartext HTTP traffic across the app -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Enforce TLS and optional certificate pinning for production domain -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.sahaaye.org</domain>
+    </domain-config>
+</network-security-config>

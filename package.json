@@ -1,0 +1,25 @@
+{
+  "name": "sahaaye-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SAHAAYE - Community Humanitarian Aid Platform",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix shared run build && npm --prefix backend run build && npm --prefix frontend run build",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "test:security": "npm --prefix backend run test:security",
+    "lint": "eslint . --ext .ts,.tsx",
+    "audit:security": "npm audit --audit-level=high"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5"
+  }
+}
