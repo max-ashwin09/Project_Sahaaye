@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.sahaaye.data.model.NeedItem
+import com.sahaaye.data.model.SahaayeLocation
 import com.sahaaye.ui.dashboard.DashboardScreen
 import com.sahaaye.ui.nearby.NearbyMapScreen
 import com.sahaaye.ui.splash.AnimatedSplashScreen
@@ -28,6 +29,8 @@ class MainActivity : ComponentActivity() {
                     color = AppBackground
                 ) {
                     var currentScreen by remember { mutableStateOf("splash") }
+                    var currentLocation by remember { mutableStateOf(SahaayeLocation.DEFAULT) }
+                    var openNearbyInManualMode by remember { mutableStateOf(false) }
 
                     BackHandler(enabled = currentScreen != "dashboard" && currentScreen != "splash") {
                         currentScreen = "dashboard"
@@ -48,7 +51,17 @@ class MainActivity : ComponentActivity() {
                             }
                             "dashboard" -> {
                                 DashboardScreen(
+                                    currentLocation = currentLocation,
+                                    onLocationChange = { newLoc ->
+                                        currentLocation = newLoc
+                                        Toast.makeText(this@MainActivity, "📍 Location: ${newLoc.name}", Toast.LENGTH_SHORT).show()
+                                    },
                                     onNavigateToNearby = {
+                                        openNearbyInManualMode = false
+                                        currentScreen = "nearby"
+                                    },
+                                    onSelectOnMapClick = {
+                                        openNearbyInManualMode = true
                                         currentScreen = "nearby"
                                     },
                                     onNavigateToReport = {
@@ -64,7 +77,14 @@ class MainActivity : ComponentActivity() {
                             }
                             "nearby" -> {
                                 NearbyMapScreen(
+                                    currentLocation = currentLocation,
+                                    onLocationChange = { newLoc ->
+                                        currentLocation = newLoc
+                                        Toast.makeText(this@MainActivity, "📍 Set Location: ${newLoc.name}", Toast.LENGTH_SHORT).show()
+                                    },
+                                    initialManualMode = openNearbyInManualMode,
                                     onBackClick = {
+                                        openNearbyInManualMode = false
                                         currentScreen = "dashboard"
                                     },
                                     onNeedClick = { need: NeedItem ->

@@ -14,28 +14,33 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sahaaye.data.model.NeedItem
+import com.sahaaye.data.model.SahaayeLocation
 import com.sahaaye.data.repository.NeedsRepository
 import com.sahaaye.ui.components.*
+import com.sahaaye.ui.location.LocationSearchBottomSheet
 import com.sahaaye.ui.theme.*
 
 @Composable
 fun DashboardScreen(
+    currentLocation: SahaayeLocation = SahaayeLocation.DEFAULT,
+    onLocationChange: (SahaayeLocation) -> Unit = {},
     onNavigateToNearby: () -> Unit,
     onNavigateToReport: () -> Unit,
     onNavigateToActivities: () -> Unit,
-    onNeedDetailClick: (NeedItem) -> Unit
+    onNeedDetailClick: (NeedItem) -> Unit,
+    onSelectOnMapClick: () -> Unit = {}
 ) {
     val stats = remember { NeedsRepository.sampleStats }
     val needs = remember { NeedsRepository.sampleNeeds }
     val quickActions = remember { NeedsRepository.sampleQuickActions }
-    var selectedLocation by remember { mutableStateOf("Indore, MP") }
+    var showLocationSheet by remember { mutableStateOf(false) }
     var activeBottomTab by remember { mutableStateOf("dashboard") }
 
     Scaffold(
         topBar = {
             TopHeaderBar(
-                selectedLocation = selectedLocation,
-                onLocationClick = onNavigateToNearby,
+                selectedLocation = currentLocation.name,
+                onLocationClick = { showLocationSheet = true },
                 onNotificationClick = { /* Handle Notifications */ },
                 onProfileClick = { /* Handle Profile */ },
                 onSearchClick = onNavigateToNearby
@@ -136,6 +141,7 @@ fun DashboardScreen(
             // 3. Interactive Live Map Card with Location pulse and Pin tap
             LiveMapCard(
                 needs = needs,
+                currentLocationName = currentLocation.name,
                 onNeedPinClick = onNeedDetailClick,
                 onFullMapClick = onNavigateToNearby
             )
@@ -165,6 +171,22 @@ fun DashboardScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // Google Maps-style Interactive Location Search Modal
+        if (showLocationSheet) {
+            LocationSearchBottomSheet(
+                currentLocation = currentLocation,
+                onLocationSelected = { newLoc ->
+                    onLocationChange(newLoc)
+                    showLocationSheet = false
+                },
+                onSelectOnMapClick = {
+                    showLocationSheet = false
+                    onSelectOnMapClick()
+                },
+                onDismissRequest = { showLocationSheet = false }
+            )
         }
     }
 }

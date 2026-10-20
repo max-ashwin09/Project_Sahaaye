@@ -105,15 +105,17 @@ fun TopHeaderBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Location Pill
+                // Location Pill (Auto-adjusting width, max-lines 1, with Google Maps-style dropdown)
                 Surface(
                     color = BorderLight,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.clickable { onLocationClick() }
+                    modifier = Modifier
+                        .widthIn(min = 90.dp, max = 145.dp)
+                        .clickable { onLocationClick() }
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp)
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 10.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.LocationOn,
@@ -121,12 +123,21 @@ fun TopHeaderBar(
                             tint = BrandPrimary,
                             modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = selectedLocation,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Select Location",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -335,6 +346,7 @@ fun StatsRow(
 @Composable
 fun LiveMapCard(
     needs: List<NeedItem>,
+    currentLocationName: String = "Indore Center",
     onNeedPinClick: (NeedItem) -> Unit,
     onFullMapClick: () -> Unit
 ) {
@@ -456,15 +468,15 @@ fun LiveMapCard(
                     )
                 }
 
-                // Indore City Label
+                // City / Area Center Label
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .offset(y = 20.dp)
-                        .background(Color.White.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
+                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
-                    Text("Indore Center", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(currentLocationName, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 }
 
                 // Pins for needs around Indore
