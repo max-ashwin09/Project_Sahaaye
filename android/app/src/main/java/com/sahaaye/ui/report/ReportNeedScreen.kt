@@ -3,9 +3,7 @@ package com.sahaaye.ui.report
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.SahaayeLocation
 import java.io.File
@@ -16,7 +14,7 @@ fun ReportNeedScreen(
     onNeedPublished: (NeedItem) -> Unit
 ) {
     var currentStage by remember { mutableStateOf("camera") } // "camera" or "form"
-    var capturedPhotoFile by remember { mutableStateOf<File?>(null) }
+    var capturedMediaFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var capturedLocation by remember { mutableStateOf<SahaayeLocation?>(null) }
 
     BackHandler {
@@ -35,8 +33,8 @@ fun ReportNeedScreen(
         when (stage) {
             "camera" -> {
                 GeoCameraView(
-                    onPhotoCaptured = { file, loc ->
-                        capturedPhotoFile = file
+                    onMediaCaptured = { files, loc ->
+                        capturedMediaFiles = files
                         capturedLocation = loc
                         currentStage = "form"
                     },
@@ -44,9 +42,9 @@ fun ReportNeedScreen(
                 )
             }
             "form" -> {
-                if (capturedPhotoFile != null && capturedLocation != null) {
+                if (capturedMediaFiles.isNotEmpty() && capturedLocation != null) {
                     ReportNeedFormScreen(
-                        capturedPhoto = capturedPhotoFile!!,
+                        capturedPhotos = capturedMediaFiles,
                         capturedLocation = capturedLocation!!,
                         onRetakePhoto = {
                             currentStage = "camera"

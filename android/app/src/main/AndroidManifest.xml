@@ -9,8 +9,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Camera Permission (for capturing need proof, photos, video updates) -->
+    <!-- Camera & Audio Recording Permission (for capturing photo/video proof) -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- Photo, Video, Media & Storage Permissions -->

@@ -2,6 +2,7 @@ package com.sahaaye.ui.report
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,12 +36,15 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportNeedFormScreen(
-    capturedPhoto: File,
+    capturedPhotos: List<File>,
     capturedLocation: SahaayeLocation,
     onRetakePhoto: () -> Unit,
     onSubmitNeed: (NeedItem) -> Unit,
     onBackClick: () -> Unit
 ) {
+    var selectedMediaIndex by remember { mutableStateOf(0) }
+    val currentPhoto = capturedPhotos.getOrElse(selectedMediaIndex) { capturedPhotos.firstOrNull() }
+
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Food") }
@@ -119,12 +123,36 @@ fun ReportNeedFormScreen(
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color.Black)
                     ) {
-                        AsyncImage(
-                            model = capturedPhoto,
-                            contentDescription = "Geo Stamped Photo",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (currentPhoto != null) {
+                            AsyncImage(
+                                model = currentPhoto,
+                                contentDescription = "Geo Stamped Media",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            if (currentPhoto.name.endsWith(".mp4")) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Surface(
+                                        color = Color.Black.copy(alpha = 0.65f),
+                                        shape = CircleShape,
+                                        modifier = Modifier.size(52.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Recorded Video",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         // Verified Badge overlay
                         Surface(
@@ -145,8 +173,11 @@ fun ReportNeedFormScreen(
                                         .background(Color(0xFF10B981))
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
+                                val isVid = currentPhoto?.name?.endsWith(".mp4") == true
+                                val typeLabel = if (isVid) "Geo-Verified Video" else "Geo-Verified Photo"
+                                val countLabel = if (capturedPhotos.size > 1) " (${selectedMediaIndex + 1}/${capturedPhotos.size})" else ""
                                 Text(
-                                    text = "Geo-Verified",
+                                    text = "$typeLabel$countLabel",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
@@ -154,7 +185,7 @@ fun ReportNeedFormScreen(
                             }
                         }
 
-                        // Retake button overlay
+                        // Retake / Add More button overlay
                         Surface(
                             color = Color(0xDD0F172A),
                             shape = RoundedCornerShape(20.dp),
@@ -169,17 +200,79 @@ fun ReportNeedFormScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "Retake",
+                                    contentDescription = "Add / Retake",
                                     tint = Color.White,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Retake",
+                                    text = "Add / Retake",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
+                            }
+                        }
+                    }
+
+                    // Thumbnail carousel if multiple items captured
+                    if (capturedPhotos.size > 1) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(capturedPhotos.size) { index ->
+                                val itemFile = capturedPhotos[index]
+                                val isSelected = index == selectedMediaIndex
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .border(
+                                            width = if (isSelected) 2.5.dp else 1.dp,
+                                            color = if (isSelected) BrandPrimary else Color(0x33000000),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { selectedMediaIndex = index }
+                                ) {
+                                    AsyncImage(
+                                        model = itemFile,
+                                        contentDescription = "Media thumb $index",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    if (itemFile.name.endsWith(".mp4")) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Video",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    Surface(
+                                        color = if (isSelected) BrandPrimary else Color(0xCC000000),
+                                        shape = CircleShape,
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(3.dp)
+                                            .size(16.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = "${index + 1}",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -451,10 +544,11 @@ fun ReportNeedFormScreen(
 
                     coroutineScope.launch {
                         val selectedCatInfo = categories.find { it.first == selectedCategory } ?: categories.first()
+                        val primaryPhoto = capturedPhotos.firstOrNull() ?: File("")
 
                         // Call backend server (POST /api/v1/needs)
                         val uploadResult = NeedsApiService.uploadReportedNeed(
-                            photoFile = capturedPhoto,
+                            photoFile = primaryPhoto,
                             title = title.trim(),
                             description = description.trim(),
                             category = selectedCategory,
@@ -485,7 +579,7 @@ fun ReportNeedFormScreen(
                                 tagColor = selectedCatInfo.third,
                                 tagBg = selectedCatInfo.third.copy(alpha = 0.15f),
                                 description = serverResponse.description,
-                                imagePath = capturedPhoto.absolutePath,
+                                imagePath = primaryPhoto.absolutePath,
                                 isUserReported = true,
                                 urgency = serverResponse.urgency
                             )
@@ -510,7 +604,7 @@ fun ReportNeedFormScreen(
                                 tagColor = selectedCatInfo.third,
                                 tagBg = selectedCatInfo.third.copy(alpha = 0.15f),
                                 description = description.trim(),
-                                imagePath = capturedPhoto.absolutePath,
+                                imagePath = primaryPhoto.absolutePath,
                                 isUserReported = true,
                                 urgency = selectedUrgency
                             )

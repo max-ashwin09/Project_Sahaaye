@@ -85,6 +85,7 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
+    implementation("androidx.camera:camera-video:$cameraxVersion")
 
     // Image loading (Coil)
     implementation("io.coil-kt:coil-compose:2.6.0")
@@ -99,4 +100,21 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// Automatically sync latest APK to web storage on every build
+tasks.register("syncApkToWebStorage") {
+    doLast {
+        val apkFile = file("${layout.buildDirectory.get()}/outputs/apk/debug/app-debug.apk")
+        val targetDir = file("${rootProject.projectDir}/../storage/downloads")
+        if (apkFile.exists()) {
+            targetDir.mkdirs()
+            apkFile.copyTo(file("$targetDir/sahaaye-latest.apk"), overwrite = true)
+            println("🚀 [SAHAAYE] Latest APK synced automatically to Web storage: $targetDir/sahaaye-latest.apk")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.findByName("assembleDebug")?.finalizedBy("syncApkToWebStorage")
 }
