@@ -1,17 +1,23 @@
 package com.sahaaye.ui.nearby
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.view.ViewGroup
+import android.webkit.JavascriptInterface
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.*
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -21,18 +27,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.SahaayeLocation
 import com.sahaaye.data.repository.NeedsRepository
+import com.sahaaye.data.service.WorldwideLocationService
 import com.sahaaye.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 
+class MapWebBridge(
+    private val onMapReadyCallback: () -> Unit,
+    private val onMapClickCallback: (Double, Double) -> Unit,
+    private val onNeedClickCallback: (String) -> Unit
+) {
+    @JavascriptInterface
+    fun onMapReady() {
+        onMapReadyCallback()
+    }
+
+    @JavascriptInterface
+    fun onMapClicked(lat: Double, lng: Double) {
+        onMapClickCallback(lat, lng)
+    }
+
+    @JavascriptInterface
+    fun onNeedMarkerClicked(needId: String) {
+        onNeedClickCallback(needId)
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NearbyMapScreen(
@@ -42,75 +77,82 @@ fun NearbyMapScreen(
     onBackClick: () -> Unit,
     onNeedClick: (NeedItem) -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var selectedCategory by remember { mutableStateOf("All") }
     var selectedRadiusKm by remember { mutableStateOf(5.0) }
     var isMapView by remember { mutableStateOf(true) }
     var selectedNeed by remember { mutableStateOf<NeedItem?>(null) }
-    var isLocating by remember { mutableStateOf(false) }
 
-    // Manual map selection state
+    // Custom Radius Dialog State
+    var showCustomRadiusDialog by remember { mutableStateOf(false) }
+    var customRadiusInput by remember { mutableStateOf("") }
+
+    // Manual map pin state
     var isManualPickerActive by remember { mutableStateOf(initialManualMode) }
-    var manualPinOffset by remember { mutableStateOf<Offset?>(null) }
     var manualPinLocation by remember { mutableStateOf<SahaayeLocation?>(null) }
+    var isReverseGeocoding by remember { mutableStateOf(false) }
 
-    // Google Maps-style location search query
+    // Top Google Maps Worldwide search state
     var mapSearchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
+    var searchSuggestions by remember { mutableStateOf<List<SahaayeLocation>>(emptyList()) }
+    var isSearchingWorldwide by remember { mutableStateOf(false) }
+
+    // Map WebView instance & loaded state
+    var mapWebView by remember { mutableStateOf<WebView?>(null) }
+    var isMapReady by remember { mutableStateOf(false) }
 
     val categories = listOf("All", "Food", "Medical", "Education", "Shelter", "Elderly")
-    val radiusOptions = listOf(1.0, 3.0, 5.0, 10.0)
+    val presetRadii = listOf(1.0, 3.0, 5.0, 10.0)
 
-    val allNeeds = remember { NeedsRepository.sampleNeeds }
+    // Compute realistic needs centered at currentLocation
+    val allNeeds = remember(currentLocation) {
+        NeedsRepository.getNeedsForLocation(
+            currentLocation.latitude,
+            currentLocation.longitude,
+            currentLocation.name
+        )
+    }
 
-    // Calculate dynamically updated distances and filtered needs based on currentLocation
-    val filteredNeeds = remember(selectedCategory, selectedRadiusKm, currentLocation) {
-        allNeeds.map { need ->
-            val dist = NeedsRepository.calculateDistance(
-                currentLocation.latitude, currentLocation.longitude,
-                need.latitude, need.longitude
-            )
-            need.copy(distanceKm = dist)
-        }.filter { need ->
-            (selectedCategory == "All" || need.category == selectedCategory) &&
-                    need.distanceKm <= selectedRadiusKm
+    // Filter strictly by selected radius and category
+    val filteredNeeds = remember(selectedCategory, selectedRadiusKm, allNeeds) {
+        allNeeds.filter { need ->
+            val matchesCat = selectedCategory == "All" || need.category.equals(selectedCategory, ignoreCase = true)
+            val matchesRadius = need.distanceKm <= selectedRadiusKm
+            matchesCat && matchesRadius
         }.sortedBy { it.distanceKm }
     }
 
-    // Google Maps auto-suggestions matching search query
-    val searchSuggestions = remember(mapSearchQuery) {
-        if (mapSearchQuery.trim().isEmpty()) {
-            emptyList()
+    // Debounced worldwide search in top search bar
+    LaunchedEffect(mapSearchQuery) {
+        val trimmed = mapSearchQuery.trim()
+        if (trimmed.isEmpty()) {
+            searchSuggestions = emptyList()
+            isSearchingWorldwide = false
         } else {
-            val q = mapSearchQuery.trim().lowercase()
-            SahaayeLocation.SAMPLE_LOCATIONS.filter { loc ->
-                loc.name.lowercase().contains(q) ||
-                loc.fullAddress.lowercase().contains(q) ||
-                loc.locality.lowercase().contains(q) ||
-                loc.placeType.lowercase().contains(q)
-            }
+            isSearchingWorldwide = true
+            delay(350)
+            val results = WorldwideLocationService.searchLocations(trimmed, context)
+            searchSuggestions = results
+            isSearchingWorldwide = false
         }
     }
 
-    // User location animation
-    val infiniteTransition = rememberInfiniteTransition(label = "nearby_pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1300, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "scale"
-    )
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 0.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1300, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "alpha"
-    )
+    // Sync map when location, radius, or filtered needs change
+    LaunchedEffect(isMapReady, currentLocation, selectedRadiusKm, filteredNeeds) {
+        if (isMapReady && mapWebView != null) {
+            val needsJson = formatNeedsJson(filteredNeeds)
+            mapWebView?.evaluateJavascript(
+                "renderActiveLocation(${currentLocation.latitude}, ${currentLocation.longitude}, $selectedRadiusKm, false);",
+                null
+            )
+            mapWebView?.evaluateJavascript(
+                "updateNeedsMarkers($needsJson);",
+                null
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -131,8 +173,13 @@ fun NearbyMapScreen(
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
+                            val radiusLabel = if (selectedRadiusKm == selectedRadiusKm.toInt().toDouble()) {
+                                "${selectedRadiusKm.toInt()} km"
+                            } else {
+                                "$selectedRadiusKm km"
+                            }
                             Text(
-                                text = "${currentLocation.name} • ${filteredNeeds.size} needs in ${selectedRadiusKm.toInt()} km",
+                                text = "${currentLocation.name} • ${filteredNeeds.size} needs in $radiusLabel",
                                 fontSize = 11.sp,
                                 color = TextSecondary,
                                 maxLines = 1,
@@ -147,34 +194,27 @@ fun NearbyMapScreen(
                     }
                 },
                 actions = {
-                    // Manual Pin Mode Toggle
-                    IconButton(
-                        onClick = {
-                            isManualPickerActive = !isManualPickerActive
-                            if (!isManualPickerActive) {
-                                manualPinOffset = null
-                                manualPinLocation = null
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (isManualPickerActive) Icons.Default.Place else Icons.Outlined.Place,
-                            contentDescription = "Pin Mode",
-                            tint = if (isManualPickerActive) AccentRose else BrandPrimary
-                        )
-                    }
-
-                    // GPS Recenter
+                    // Recenter GPS
                     IconButton(onClick = {
-                        isLocating = !isLocating
-                        onLocationChange(SahaayeLocation.DEFAULT)
-                        manualPinOffset = null
-                        manualPinLocation = null
+                        coroutineScope.launch {
+                            val gpsLoc = WorldwideLocationService.reverseGeocode(
+                                currentLocation.latitude,
+                                currentLocation.longitude,
+                                context
+                            )
+                            onLocationChange(gpsLoc)
+                            manualPinLocation = null
+                            mapWebView?.evaluateJavascript("clearDroppedPin();", null)
+                            mapWebView?.evaluateJavascript(
+                                "renderActiveLocation(${gpsLoc.latitude}, ${gpsLoc.longitude}, $selectedRadiusKm, true);",
+                                null
+                            )
+                        }
                     }) {
                         Icon(
                             imageVector = Icons.Default.MyLocation,
                             contentDescription = "My Location",
-                            tint = if (isLocating) StatCompleted else BrandPrimary
+                            tint = BrandPrimary
                         )
                     }
                 },
@@ -190,7 +230,7 @@ fun NearbyMapScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                // ── 1. Google Maps-style Search Bar ─────────────────────────────────
+                // ── 1. Google Maps-style Worldwide Search Bar ────────────────────────
                 Surface(
                     color = CardSurface,
                     shadowElevation = 3.dp,
@@ -199,13 +239,10 @@ fun NearbyMapScreen(
                     Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
                         OutlinedTextField(
                             value = mapSearchQuery,
-                            onValueChange = {
-                                mapSearchQuery = it
-                                isSearchActive = it.isNotEmpty()
-                            },
+                            onValueChange = { mapSearchQuery = it },
                             placeholder = {
                                 Text(
-                                    text = "Search gali, mohalla, colony, landmark…",
+                                    text = "Search gali, mohalla, city, landmark worldwide…",
                                     fontSize = 13.sp,
                                     color = TextMuted
                                 )
@@ -219,11 +256,14 @@ fun NearbyMapScreen(
                                 )
                             },
                             trailingIcon = {
-                                if (mapSearchQuery.isNotEmpty()) {
-                                    IconButton(onClick = {
-                                        mapSearchQuery = ""
-                                        isSearchActive = false
-                                    }) {
+                                if (isSearchingWorldwide) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = BrandPrimary
+                                    )
+                                } else if (mapSearchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { mapSearchQuery = "" }) {
                                         Icon(
                                             imageVector = Icons.Default.Clear,
                                             contentDescription = "Clear",
@@ -243,6 +283,67 @@ fun NearbyMapScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        // Live Search Suggestions Dropdown
+                        if (searchSuggestions.isNotEmpty() && mapSearchQuery.trim().isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                color = CardSurface,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, BorderSubtle),
+                                shadowElevation = 6.dp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 240.dp)
+                            ) {
+                                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                    items(searchSuggestions) { suggestion ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    onLocationChange(suggestion)
+                                                    mapSearchQuery = ""
+                                                    manualPinLocation = null
+                                                    mapWebView?.evaluateJavascript("clearDroppedPin();", null)
+                                                    mapWebView?.evaluateJavascript(
+                                                        "renderActiveLocation(${suggestion.latitude}, ${suggestion.longitude}, $selectedRadiusKm, true);",
+                                                        null
+                                                    )
+                                                }
+                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Place,
+                                                contentDescription = null,
+                                                tint = BrandPrimary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = suggestion.name,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = TextPrimary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = suggestion.fullAddress,
+                                                    fontSize = 11.sp,
+                                                    color = TextSecondary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        HorizontalDivider(color = BorderLight, thickness = 0.5.dp)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -253,88 +354,165 @@ fun NearbyMapScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                        // Category Pills
+                        // Category Filter Chips
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(categories) { cat ->
-                                val isSelected = selectedCategory == cat
+                            items(categories) { category ->
+                                val isSelected = selectedCategory == category
                                 FilterChip(
                                     selected = isSelected,
-                                    onClick = { selectedCategory = cat },
-                                    label = { Text(cat, fontSize = 12.sp) },
+                                    onClick = { selectedCategory = category },
+                                    label = {
+                                        Text(
+                                            text = category,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = BrandPrimary,
-                                        selectedLabelColor = TextInverted
-                                    )
+                                        selectedLabelColor = TextInverted,
+                                        containerColor = CardSurface,
+                                        labelColor = TextSecondary
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = isSelected,
+                                        borderColor = if (isSelected) BrandPrimary else BorderSubtle,
+                                        borderWidth = 1.dp
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
                                 )
                             }
                         }
 
-                        // Radius and View Toggle Row
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Radius Filter Chips + Custom Radius & Map/List Toggle
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Radius Options (1km, 3km, 5km, 10km)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text("Radius:", fontSize = 12.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
-                                radiusOptions.forEach { rad ->
-                                    val isSelected = selectedRadiusKm == rad
-                                    Surface(
-                                        color = if (isSelected) BrandPrimaryLight else BorderLight,
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = if (isSelected) BorderStroke(1.dp, BrandPrimary) else null,
-                                        modifier = Modifier.clickable { selectedRadiusKm = rad }
-                                    ) {
-                                        Text(
-                                            text = "${rad.toInt()}km",
-                                            fontSize = 11.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) BrandPrimary else TextSecondary,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                        )
+                                Text(
+                                    text = "Radius:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextSecondary
+                                )
+
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    items(presetRadii) { radius ->
+                                        val isSelected = selectedRadiusKm == radius
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isSelected) BrandPrimaryLight else CardSurface,
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (isSelected) BrandPrimary else BorderSubtle
+                                            ),
+                                            modifier = Modifier.clickable {
+                                                selectedRadiusKm = radius
+                                                mapWebView?.evaluateJavascript(
+                                                    "renderActiveLocation(${currentLocation.latitude}, ${currentLocation.longitude}, $radius, true);",
+                                                    null
+                                                )
+                                            }
+                                        ) {
+                                            Text(
+                                                text = "${radius.toInt()}km",
+                                                fontSize = 11.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) BrandPrimary else TextSecondary,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                            )
+                                        }
+                                    }
+
+                                    // Custom Radius Chip
+                                    item {
+                                        val isCustomActive = selectedRadiusKm !in presetRadii
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isCustomActive) BrandPrimaryLight else CardSurface,
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (isCustomActive) BrandPrimary else BorderSubtle
+                                            ),
+                                            modifier = Modifier.clickable {
+                                                customRadiusInput = if (isCustomActive) "$selectedRadiusKm" else ""
+                                                showCustomRadiusDialog = true
+                                            }
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = "Custom Radius",
+                                                    tint = if (isCustomActive) BrandPrimary else TextSecondary,
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text(
+                                                    text = if (isCustomActive) "${selectedRadiusKm}km" else "Custom",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (isCustomActive) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isCustomActive) BrandPrimary else TextSecondary
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
 
                             // View Toggle (Map / List)
                             Surface(
-                                color = BorderLight,
-                                shape = RoundedCornerShape(16.dp)
+                                shape = RoundedCornerShape(8.dp),
+                                color = CardSurface,
+                                border = BorderStroke(1.dp, BorderSubtle)
                             ) {
-                                Row(modifier = Modifier.padding(2.dp)) {
-                                    Surface(
-                                        color = if (isMapView) BrandPrimary else Color.Transparent,
-                                        shape = RoundedCornerShape(14.dp),
-                                        modifier = Modifier.clickable { isMapView = true }
+                                Row {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
+                                            .background(if (isMapView) BrandPrimary else Color.Transparent)
+                                            .clickable { isMapView = true }
+                                            .padding(horizontal = 8.dp, vertical = 5.dp)
                                     ) {
                                         Text(
                                             text = "🗺️ Map",
                                             fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
                                             color = if (isMapView) TextInverted else TextSecondary,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                            fontWeight = if (isMapView) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
-                                    Surface(
-                                        color = if (!isMapView) BrandPrimary else Color.Transparent,
-                                        shape = RoundedCornerShape(14.dp),
-                                        modifier = Modifier.clickable { isMapView = false }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp))
+                                            .background(if (!isMapView) BrandPrimary else Color.Transparent)
+                                            .clickable { isMapView = false }
+                                            .padding(horizontal = 8.dp, vertical = 5.dp)
                                     ) {
                                         Text(
                                             text = "📋 List",
                                             fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
                                             color = if (!isMapView) TextInverted else TextSecondary,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                            fontWeight = if (!isMapView) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
                                 }
@@ -343,242 +521,103 @@ fun NearbyMapScreen(
                     }
                 }
 
-                // Manual Pin Selector Status Bar (if active)
-                if (isManualPickerActive) {
-                    Surface(
-                        color = Color(0xFFFFF1F2),
-                        border = BorderStroke(1.dp, Color(0xFFFECDD3)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.TouchApp, contentDescription = null, tint = AccentRose, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Tap anywhere on the map to set location pin",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = AccentRose
-                                )
-                            }
-                            Text(
-                                text = "Done",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = BrandPrimary,
-                                modifier = Modifier.clickable { isManualPickerActive = false }
-                            )
-                        }
-                    }
-                }
-
-                // ── 3. Main Content: Interactive Map or List ────────────────────────────
+                // ── 3. Main Content: Real Interactive Map or List ────────────────────
                 if (isMapView) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        // Interactive Map Canvas with Gesture Detection
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(Unit) {
-                                    detectTapGestures { tapOffset ->
-                                        // User tapped on the map canvas
-                                        manualPinOffset = tapOffset
-                                        selectedNeed = null
 
-                                        // Reverse match nearest location or synthesize custom pin
-                                        val normX = tapOffset.x / size.width
-                                        val normY = tapOffset.y / size.height
-                                        val offsetLat = (0.5 - normY) * 0.08
-                                        val offsetLng = (normX - 0.5) * 0.08
-                                        val calcLat = currentLocation.latitude + offsetLat
-                                        val calcLng = currentLocation.longitude + offsetLng
-
-                                        // Find closest locality name from samples or compose street name
-                                        val nearest = SahaayeLocation.SAMPLE_LOCATIONS.minByOrNull {
-                                            NeedsRepository.calculateDistance(calcLat, calcLng, it.latitude, it.longitude)
-                                        }
-
-                                        manualPinLocation = SahaayeLocation(
-                                            id = "map_pin_${System.currentTimeMillis()}",
-                                            name = nearest?.name ?: "Pinned Location",
-                                            fullAddress = "Near ${nearest?.fullAddress ?: "MG Road, Indore, MP 452001"}",
-                                            locality = nearest?.locality ?: "Indore Area",
-                                            latitude = calcLat,
-                                            longitude = calcLng,
-                                            placeType = "Map Pin"
-                                        )
+                        // Embedded Real Interactive Leaflet / Google-style Map View
+                        AndroidView(
+                            factory = { ctx ->
+                                WebView(ctx).apply {
+                                    layoutParams = ViewGroup.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                    settings.apply {
+                                        javaScriptEnabled = true
+                                        domStorageEnabled = true
+                                        allowFileAccess = true
+                                        setSupportZoom(true)
+                                        builtInZoomControls = false
+                                        displayZoomControls = false
+                                        cacheMode = WebSettings.LOAD_DEFAULT
                                     }
-                                }
-                        ) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val w = size.width
-                                val h = size.height
-
-                                // Draw Map Background
-                                drawRect(Color(0xFFE8F5E9))
-
-                                // Roads & Geographical lines
-                                drawLine(Color(0xFFC8E6C9), Offset(0f, h * 0.25f), Offset(w, h * 0.25f), strokeWidth = 12f)
-                                drawLine(Color(0xFFC8E6C9), Offset(0f, h * 0.50f), Offset(w, h * 0.50f), strokeWidth = 16f)
-                                drawLine(Color(0xFFC8E6C9), Offset(0f, h * 0.75f), Offset(w, h * 0.75f), strokeWidth = 10f)
-
-                                drawLine(Color(0xFFC8E6C9), Offset(w * 0.25f, 0f), Offset(w * 0.25f, h), strokeWidth = 10f)
-                                drawLine(Color(0xFFC8E6C9), Offset(w * 0.50f, 0f), Offset(w * 0.50f, h), strokeWidth = 18f)
-                                drawLine(Color(0xFFC8E6C9), Offset(w * 0.75f, 0f), Offset(w * 0.75f, h), strokeWidth = 10f)
-
-                                // User location blue pulse
-                                drawCircle(
-                                    color = BrandPrimary.copy(alpha = pulseAlpha),
-                                    radius = 32.dp.toPx() * pulseScale,
-                                    center = Offset(w * 0.5f, h * 0.45f)
-                                )
-                                drawCircle(
-                                    color = Color.White,
-                                    radius = 12.dp.toPx(),
-                                    center = Offset(w * 0.5f, h * 0.45f)
-                                )
-                                drawCircle(
-                                    color = BrandPrimary,
-                                    radius = 8.dp.toPx(),
-                                    center = Offset(w * 0.5f, h * 0.45f)
-                                )
-                            }
-
-                            // Current Location Center Badge
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .offset(y = (-30).dp)
-                                    .background(Color.White.copy(alpha = 0.92f), RoundedCornerShape(8.dp))
-                                    .border(1.dp, BorderSubtle, RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "📍 ${currentLocation.name}",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                            }
-
-                            // Need Pin Markers on Map
-                            val pinPositions = listOf(
-                                Offset(0.25f, 0.25f),
-                                Offset(0.70f, 0.32f),
-                                Offset(0.30f, 0.65f),
-                                Offset(0.75f, 0.60f),
-                                Offset(0.48f, 0.20f),
-                                Offset(0.55f, 0.70f)
-                            )
-
-                            filteredNeeds.take(pinPositions.size).forEachIndexed { i, need ->
-                                val pos = pinPositions[i]
-                                val isSelected = selectedNeed?.id == need.id
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(
-                                            start = (pos.x * 320).dp,
-                                            top = (pos.y * 380).dp
-                                        )
-                                ) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = if (isSelected) Color.Black else need.tagColor,
-                                        shadowElevation = if (isSelected) 8.dp else 4.dp,
-                                        border = if (isSelected) BorderStroke(2.dp, Color.White) else null,
-                                        modifier = Modifier
-                                            .size(if (isSelected) 42.dp else 34.dp)
-                                            .clickable {
-                                                selectedNeed = need
-                                                manualPinOffset = null
-                                                manualPinLocation = null
+                                    webViewClient = object : WebViewClient() {
+                                        override fun onPageFinished(view: WebView?, url: String?) {
+                                            super.onPageFinished(view, url)
+                                            isMapReady = true
+                                            val needsJson = formatNeedsJson(filteredNeeds)
+                                            evaluateJavascript(
+                                                "renderActiveLocation(${currentLocation.latitude}, ${currentLocation.longitude}, $selectedRadiusKm, true);",
+                                                null
+                                            )
+                                            evaluateJavascript(
+                                                "updateNeedsMarkers($needsJson);",
+                                                null
+                                            )
+                                        }
+                                    }
+                                    addJavascriptInterface(
+                                        MapWebBridge(
+                                            onMapReadyCallback = {
+                                                isMapReady = true
+                                            },
+                                            onMapClickCallback = { lat, lng ->
+                                                coroutineScope.launch {
+                                                    isReverseGeocoding = true
+                                                    val loc = WorldwideLocationService.reverseGeocode(lat, lng, ctx)
+                                                    manualPinLocation = loc
+                                                    isReverseGeocoding = false
+                                                }
+                                            },
+                                            onNeedClickCallback = { needId ->
+                                                val need = allNeeds.find { it.id == needId }
+                                                if (need != null) {
+                                                    selectedNeed = need
+                                                    manualPinLocation = null
+                                                }
                                             }
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text(text = need.emoji, fontSize = if (isSelected) 18.sp else 15.sp)
-                                        }
+                                        ),
+                                        "AndroidBridge"
+                                    )
+                                    setOnTouchListener { v, _ ->
+                                        v.parent.requestDisallowInterceptTouchEvent(true)
+                                        false
                                     }
+                                    loadUrl("file:///android_asset/map/index.html")
+                                    mapWebView = this
                                 }
-                            }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
 
-                            // Manual Dropped Pin Marker
-                            manualPinOffset?.let { offset ->
-                                Box(
-                                    modifier = Modifier
-                                        .offset(
-                                            x = (offset.x / 2.7).dp - 18.dp,
-                                            y = (offset.y / 2.7).dp - 36.dp
-                                        )
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Surface(
-                                            color = AccentRose,
-                                            shape = CircleShape,
-                                            border = BorderStroke(2.dp, Color.White),
-                                            shadowElevation = 8.dp,
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Place,
-                                                    contentDescription = "Pinned Location",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(22.dp)
-                                                )
-                                            }
-                                        }
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .background(AccentRose, CircleShape)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Floating Recenter & Pick Pin Buttons (Top-End)
-                        Column(
+                        // Top Instruction Pill for Map
+                        Surface(
+                            color = Color.White.copy(alpha = 0.94f),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, BorderSubtle),
+                            shadowElevation = 4.dp,
                             modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                .align(Alignment.TopCenter)
+                                .padding(top = 10.dp)
                         ) {
-                            FloatingActionButton(
-                                onClick = {
-                                    isManualPickerActive = !isManualPickerActive
-                                },
-                                containerColor = if (isManualPickerActive) AccentRose else CardSurface,
-                                contentColor = if (isManualPickerActive) Color.White else BrandPrimary,
-                                shape = CircleShape,
-                                modifier = Modifier.size(44.dp)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.AddLocationAlt,
-                                    contentDescription = "Tap to pick pin"
+                                    imageVector = Icons.Default.TouchApp,
+                                    contentDescription = null,
+                                    tint = BrandPrimary,
+                                    modifier = Modifier.size(14.dp)
                                 )
-                            }
-
-                            FloatingActionButton(
-                                onClick = {
-                                    selectedNeed = null
-                                    manualPinOffset = null
-                                    manualPinLocation = null
-                                    isLocating = true
-                                    onLocationChange(SahaayeLocation.DEFAULT)
-                                },
-                                containerColor = CardSurface,
-                                contentColor = BrandPrimary,
-                                shape = CircleShape,
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Icon(Icons.Default.MyLocation, contentDescription = "Recenter GPS")
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Pinch to zoom in/out • Tap anywhere to drop pin",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
                             }
                         }
 
@@ -592,108 +631,135 @@ fun NearbyMapScreen(
                         // Bottom Manual Pin Confirmation Card when Map is tapped
                         ManualPinConfirmationSheet(
                             location = manualPinLocation,
+                            isLoading = isReverseGeocoding,
                             onConfirm = {
                                 manualPinLocation?.let { loc ->
                                     onLocationChange(loc)
-                                    isManualPickerActive = false
                                 }
-                                manualPinOffset = null
                                 manualPinLocation = null
+                                mapWebView?.evaluateJavascript("clearDroppedPin();", null)
                             },
-                            onDismiss = {
-                                manualPinOffset = null
+                            onCancel = {
                                 manualPinLocation = null
+                                mapWebView?.evaluateJavascript("clearDroppedPin();", null)
                             }
                         )
                     }
                 } else {
-                    // List View of Nearby Needs
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(filteredNeeds) { need ->
-                            Card(
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = CardSurface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onNeedClick(need) }
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        Row(modifier = Modifier.weight(1f)) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(44.dp)
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(need.tagBg),
-                                                contentAlignment = Alignment.Center
+                    // List View: All needs within selectedRadiusKm
+                    if (filteredNeeds.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = "🔍", fontSize = 48.sp)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                val radiusLabel = if (selectedRadiusKm == selectedRadiusKm.toInt().toDouble()) {
+                                    "${selectedRadiusKm.toInt()} km"
+                                } else {
+                                    "$selectedRadiusKm km"
+                                }
+                                Text(
+                                    text = "No needs found within $radiusLabel",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Try increasing your search radius or changing category filters to see more requests.",
+                                    fontSize = 13.sp,
+                                    color = TextSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        selectedRadiusKm = 25.0
+                                        selectedCategory = "All"
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("Expand to 25 km")
+                                }
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(filteredNeeds, key = { it.id }) { need ->
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = CardSurface,
+                                    border = BorderStroke(1.dp, BorderSubtle),
+                                    shadowElevation = 2.dp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onNeedClick(need) }
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .background(need.tagBg, CircleShape),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(text = need.emoji, fontSize = 18.sp)
+                                                }
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column {
+                                                    Text(
+                                                        text = need.title,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = TextPrimary
+                                                    )
+                                                    Text(
+                                                        text = "📍 ${need.location}",
+                                                        fontSize = 11.sp,
+                                                        color = TextSecondary
+                                                    )
+                                                }
+                                            }
+
+                                            // Distance Badge
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = BrandPrimaryLight
                                             ) {
-                                                Text(need.emoji, fontSize = 22.sp)
+                                                Text(
+                                                    text = "${need.distanceKm} km away",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = BrandPrimary,
+                                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                                )
                                             }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column {
-                                                Text(need.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text("📍 ${need.location}", fontSize = 12.sp, color = TextSecondary)
-                                                Text("⏱ ${need.timeAgo}", fontSize = 11.sp, color = TextMuted)
-                                            }
                                         }
-                                        Surface(
-                                            color = BrandPrimaryLight,
-                                            shape = RoundedCornerShape(12.dp)
-                                        ) {
-                                            Text(
-                                                text = "${need.distanceKm} km",
-                                                color = BrandPrimary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            )
-                                        }
-                                    }
 
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = need.description,
-                                        fontSize = 13.sp,
-                                        color = TextSecondary,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                        Spacer(modifier = Modifier.height(10.dp))
 
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Surface(
-                                            color = need.tagBg,
-                                            shape = RoundedCornerShape(10.dp)
-                                        ) {
-                                            Text(
-                                                text = need.category,
-                                                color = need.tagColor,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                            )
-                                        }
-                                        Button(
-                                            onClick = { onNeedClick(need) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary),
-                                            shape = RoundedCornerShape(10.dp),
-                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                                        ) {
-                                            Text("Help Now →", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        }
+                                        Text(
+                                            text = need.description,
+                                            fontSize = 12.sp,
+                                            color = TextSecondary,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
                                 }
                             }
@@ -702,112 +768,111 @@ fun NearbyMapScreen(
                 }
             }
 
-            // Google Maps Search Suggestions Dropdown Overlay
-            if (isSearchActive && searchSuggestions.isNotEmpty()) {
-                Surface(
-                    color = CardSurface,
-                    shadowElevation = 8.dp,
-                    shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-                    border = BorderStroke(1.dp, BorderSubtle),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp)
-                        .offset(y = 66.dp)
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 280.dp)
-                            .padding(vertical = 4.dp)
-                    ) {
-                        items(searchSuggestions) { loc ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onLocationChange(loc)
-                                        mapSearchQuery = ""
-                                        isSearchActive = false
-                                        manualPinOffset = null
-                                        manualPinLocation = null
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = BrandPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = loc.name,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextPrimary
-                                    )
-                                    Text(
-                                        text = loc.fullAddress,
-                                        fontSize = 11.sp,
-                                        color = TextSecondary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+            // ── Custom Radius Input Dialog ──────────────────────────────────────────
+            if (showCustomRadiusDialog) {
+                AlertDialog(
+                    onDismissRequest = { showCustomRadiusDialog = false },
+                    title = {
+                        Text(
+                            text = "Set Custom Search Radius",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = "Enter search distance in kilometers (e.g. 2, 7.5, 15, 50). Only community needs within this radius will be displayed.",
+                                fontSize = 13.sp,
+                                color = TextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = customRadiusInput,
+                                onValueChange = { customRadiusInput = it },
+                                placeholder = { Text("Radius in km (e.g. 7)") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val entered = customRadiusInput.trim().toDoubleOrNull()
+                                if (entered != null && entered > 0.0) {
+                                    selectedRadiusKm = entered
+                                    mapWebView?.evaluateJavascript(
+                                        "renderActiveLocation(${currentLocation.latitude}, ${currentLocation.longitude}, $entered, true);",
+                                        null
                                     )
                                 }
-                                Surface(
-                                    color = BorderLight,
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
-                                    Text(
-                                        text = loc.placeType,
-                                        fontSize = 9.sp,
-                                        color = TextSecondary,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                            HorizontalDivider(color = BorderSubtle, thickness = 0.5.dp)
+                                showCustomRadiusDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
+                        ) {
+                            Text("Apply Radius")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCustomRadiusDialog = false }) {
+                            Text("Cancel", color = TextSecondary)
                         }
                     }
-                }
+                )
             }
         }
     }
 }
 
+// ── Manual Pin Confirmation Bottom Card ───────────────────────────────────────
 @Composable
 private fun BoxScope.ManualPinConfirmationSheet(
     location: SahaayeLocation?,
+    isLoading: Boolean,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onCancel: () -> Unit
 ) {
-    androidx.compose.animation.AnimatedVisibility(
-        visible = location != null,
+    AnimatedVisibility(
+        visible = location != null || isLoading,
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it }),
         modifier = Modifier.align(Alignment.BottomCenter)
     ) {
-        location?.let { loc ->
-            Card(
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                colors = CardDefaults.cardColors(containerColor = CardSurface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
+        Surface(
+            color = CardSurface,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            shadowElevation = 16.dp,
+            border = BorderStroke(1.dp, BorderSubtle),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                if (isLoading) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = BrandPrimary)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = "Identifying address from map pin…", fontSize = 13.sp, color = TextSecondary)
+                    }
+                } else if (location != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Top
                     ) {
-                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        Row(modifier = Modifier.weight(1f)) {
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
-                                    .background(AccentRoseBg, CircleShape)
-                                    .border(1.5.dp, AccentRose, CircleShape),
+                                    .background(Color(0xFFFFE4E6), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -824,49 +889,54 @@ private fun BoxScope.ManualPinConfirmationSheet(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = AccentRose,
-                                    letterSpacing = 0.5.sp
+                                    letterSpacing = 0.8.sp
                                 )
                                 Text(
-                                    text = loc.name,
-                                    fontSize = 15.sp,
+                                    text = location.name,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = location.fullAddress,
+                                    fontSize = 11.sp,
+                                    color = TextSecondary,
+                                    lineHeight = 15.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = TextMuted)
+
+                        IconButton(onClick = onCancel, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancel", tint = TextSecondary, modifier = Modifier.size(18.dp))
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = loc.fullAddress,
-                        fontSize = 12.sp,
-                        color = TextSecondary,
-                        lineHeight = 16.sp
-                    )
-
                     Spacer(modifier = Modifier.height(14.dp))
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Button(
                             onClick = onConfirm,
-                            colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
                         ) {
                             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Set as Active Location", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Set as Active Location", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
+
                         OutlinedButton(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(12.dp)
+                            onClick = onCancel,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, BorderSubtle)
                         ) {
-                            Text("Cancel", fontSize = 13.sp)
+                            Text("Cancel", fontSize = 13.sp, color = TextSecondary)
                         }
                     }
                 }
@@ -875,79 +945,105 @@ private fun BoxScope.ManualPinConfirmationSheet(
     }
 }
 
+// ── Need Preview Bottom Sheet ────────────────────────────────────────────────
 @Composable
 private fun BoxScope.NeedPreviewSheet(
     selectedNeed: NeedItem?,
     onClose: () -> Unit,
     onNeedClick: (NeedItem) -> Unit
 ) {
-    androidx.compose.animation.AnimatedVisibility(
+    AnimatedVisibility(
         visible = selectedNeed != null,
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it }),
         modifier = Modifier.align(Alignment.BottomCenter)
     ) {
         selectedNeed?.let { need ->
-            Card(
+            Surface(
+                color = CardSurface,
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                colors = CardDefaults.cardColors(containerColor = CardSurface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shadowElevation = 16.dp,
+                border = BorderStroke(1.dp, BorderSubtle),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 0.dp)
+                    .padding(bottom = 8.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(modifier = Modifier.weight(1f)) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(need.tagBg),
+                                    .size(44.dp)
+                                    .background(need.tagBg, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(need.emoji, fontSize = 20.sp)
+                                Text(text = need.emoji, fontSize = 22.sp)
                             }
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(need.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                Text("📍 ${need.location} (${need.distanceKm} km away)", fontSize = 12.sp, color = TextSecondary)
+                                Text(
+                                    text = need.title,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "📍 ${need.location} • ${need.distanceKm} km away",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
                             }
                         }
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TextMuted)
+
+                        IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary, modifier = Modifier.size(18.dp))
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(need.description, fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp)
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row(
+                    Text(
+                        text = need.description,
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        lineHeight = 16.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = { onNeedClick(need) },
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
                     ) {
-                        Button(
-                            onClick = { onNeedClick(need) },
-                            colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Offer Help Now", fontWeight = FontWeight.Bold)
-                        }
-                        OutlinedButton(
-                            onClick = { /* Direction action */ },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Directions, contentDescription = "Directions", tint = BrandPrimary)
-                        }
+                        Text("🤝 Offer Help / Respond to Need", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
     }
+}
+
+private fun formatNeedsJson(needs: List<NeedItem>): String {
+    val array = JSONArray()
+    needs.forEach { item ->
+        val obj = JSONObject()
+        obj.put("id", item.id)
+        obj.put("title", item.title)
+        obj.put("location", item.location)
+        obj.put("category", item.category)
+        obj.put("emoji", item.emoji)
+        obj.put("latitude", item.latitude)
+        obj.put("longitude", item.longitude)
+        obj.put("distanceKm", item.distanceKm)
+        array.put(obj)
+    }
+    return JSONObject.quote(array.toString())
 }

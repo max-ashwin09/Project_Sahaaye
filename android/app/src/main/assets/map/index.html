@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Sahaaye Interactive Map</title>
+  <link rel="stylesheet" href="leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body, #map { width: 100%; height: 100%; overflow: hidden; background: #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+    /* Custom Pulsing User Location Marker */
+    .user-pulse-container {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .user-pulse-wave {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(37, 99, 235, 0.35);
+      animation: pulseAnim 1.6s ease-out infinite;
+    }
+    .user-pulse-dot {
+      position: relative;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #2563EB;
+      border: 3px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    }
+    @keyframes pulseAnim {
+      0% { transform: scale(0.5); opacity: 0.9; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    /* Dropped Manual Pin */
+    .dropped-pin {
+      width: 38px;
+      height: 46px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+      animation: bouncePin 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transform-origin: bottom center;
+    }
+    @keyframes bouncePin {
+      0% { transform: translateY(-30px) scale(0.7); opacity: 0; }
+      70% { transform: translateY(3px) scale(1.05); opacity: 1; }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    /* Category Marker Pills */
+    .category-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      color: #FFFFFF;
+      font-size: 18px;
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .category-pin:active {
+      transform: scale(1.18);
+    }
+    .pin-food { background: linear-gradient(135deg, #F59E0B, #D97706); }
+    .pin-medical { background: linear-gradient(135deg, #EF4444, #B91C1C); }
+    .pin-blood { background: linear-gradient(135deg, #DC2626, #991B1B); }
+    .pin-education { background: linear-gradient(135deg, #3B82F6, #1D4ED8); }
+    .pin-shelter { background: linear-gradient(135deg, #10B981, #047857); }
+    .pin-elderly { background: linear-gradient(135deg, #8B5CF6, #6D28D9); }
+
+    /* Floating UI Controls on Map */
+    .map-controls-group {
+      position: absolute;
+      top: 56px;
+      right: 14px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .map-btn {
+      width: 44px;
+      height: 44px;
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 19px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .map-btn:active {
+      background: #F1F5F9;
+      transform: scale(0.94);
+    }
+
+    /* Custom Leaflet Tooltip */
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px !important;
+      padding: 4px 6px !important;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.18) !important;
+      border: 1px solid #E2E8F0;
+    }
+    .leaflet-popup-content {
+      margin: 8px 10px !important;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .popup-title { font-weight: 700; color: #1E293B; margin-bottom: 2px; }
+    .popup-meta { color: #64748B; font-size: 11px; display: flex; align-items: center; gap: 4px; }
+    .popup-badge { display: inline-block; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Layer & Zoom Controls -->
+  <div class="map-controls-group">
+    <div class="map-btn" id="btnLayer" title="Toggle Satellite / Streets" onclick="toggleMapLayer()">🛰️</div>
+    <div class="map-btn" id="btnZoomIn" title="Zoom In" onclick="map.zoomIn()">➕</div>
+    <div class="map-btn" id="btnZoomOut" title="Zoom Out" onclick="map.zoomOut()">➖</div>
+    <div class="map-btn" id="btnRecenter" title="Recenter to active location" onclick="recenterMap()">🎯</div>
+  </div>
+
+  <script src="leaflet.js"></script>
+  <script>
+    var map;
+    var currentTileLayer;
+    var currentLayerType = 'streets'; // 'streets' or 'satellite'
+    var centerLat = 22.7196;
+    var centerLng = 75.8577;
+    var currentRadiusKm = 5;
+    var centerMarker = null;
+    var radiusCircle = null;
+    var manualPinMarker = null;
+    var needsLayerGroup = null;
+
+    // Tile layers: Actual Google Maps tile servers
+    // 1. Google Maps Roadmap: Full streets, galis, mohallas, shops, hospitals, landmarks
+    var googleStreetsUrl = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+    // 2. Google Maps Hybrid Satellite: Space satellite imagery with street & place labels
+    var googleSatelliteUrl = 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+    // 3. Fallback OpenStreetMap
+    var osmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    function initMap(initialLat, initialLng, radiusKm) {
+      centerLat = initialLat || 22.7196;
+      centerLng = initialLng || 75.8577;
+      currentRadiusKm = radiusKm || 5;
+
+      map = L.map('map', {
+        center: [centerLat, centerLng],
+        zoom: 14,
+        zoomControl: false,
+        attributionControl: false,
+        tap: true,
+        touchZoom: true
+      });
+
+      // Google Maps Roadmap default layer
+      currentTileLayer = L.tileLayer(googleStreetsUrl, {
+        maxZoom: 21,
+        subdomains: ['0', '1', '2', '3']
+      }).addTo(map);
+
+      needsLayerGroup = L.layerGroup().addTo(map);
+
+      // Render center active location & radius circle
+      renderActiveLocation(centerLat, centerLng, currentRadiusKm);
+
+      // Map click: drops pin and notifies Android
+      map.on('click', function(e) {
+        var lat = e.latlng.lat;
+        var lng = e.latlng.lng;
+        setDroppedPin(lat, lng);
+        if (window.AndroidBridge && window.AndroidBridge.onMapClicked) {
+          window.AndroidBridge.onMapClicked(lat, lng);
+        }
+      });
+
+      // Notify Android that map is ready
+      if (window.AndroidBridge && window.AndroidBridge.onMapReady) {
+        window.AndroidBridge.onMapReady();
+      }
+    }
+
+    function toggleMapLayer() {
+      if (currentLayerType === 'streets') {
+        map.removeLayer(currentTileLayer);
+        currentTileLayer = L.tileLayer(googleSatelliteUrl, {
+          maxZoom: 21,
+          subdomains: ['0', '1', '2', '3']
+        }).addTo(map);
+        currentLayerType = 'satellite';
+        document.getElementById('btnLayer').innerText = '🗺️';
+      } else {
+        map.removeLayer(currentTileLayer);
+        currentTileLayer = L.tileLayer(googleStreetsUrl, {
+          maxZoom: 21,
+          subdomains: ['0', '1', '2', '3']
+        }).addTo(map);
+        currentLayerType = 'streets';
+        document.getElementById('btnLayer').innerText = '🛰️';
+      }
+    }
+
+    function renderActiveLocation(lat, lng, radiusKm, autoFit) {
+      centerLat = lat;
+      centerLng = lng;
+      currentRadiusKm = radiusKm;
+
+      // Center user pulse marker
+      var pulseIcon = L.divIcon({
+        className: 'user-pulse-icon',
+        html: '<div class="user-pulse-container"><div class="user-pulse-wave"></div><div class="user-pulse-dot"></div></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+
+      if (centerMarker) {
+        centerMarker.setLatLng([lat, lng]);
+      } else {
+        centerMarker = L.marker([lat, lng], { icon: pulseIcon, zIndexOffset: 500 }).addTo(map);
+      }
+
+      // Radius circle
+      var radiusMeters = radiusKm * 1000;
+      if (radiusCircle) {
+        radiusCircle.setLatLng([lat, lng]);
+        radiusCircle.setRadius(radiusMeters);
+      } else {
+        radiusCircle = L.circle([lat, lng], {
+          radius: radiusMeters,
+          color: '#2563EB',
+          weight: 2,
+          opacity: 0.85,
+          fillColor: '#3B82F6',
+          fillOpacity: 0.12,
+          interactive: false
+        }).addTo(map);
+      }
+
+      if (autoFit) {
+        map.fitBounds(radiusCircle.getBounds(), { padding: [35, 35], maxZoom: 16 });
+      } else {
+        map.panTo([lat, lng]);
+      }
+    }
+
+    function recenterMap() {
+      if (radiusCircle) {
+        map.fitBounds(radiusCircle.getBounds(), { padding: [35, 35], maxZoom: 16 });
+      } else {
+        map.setView([centerLat, centerLng], 14);
+      }
+    }
+
+    function setDroppedPin(lat, lng) {
+      var pinSvg = '<svg class="dropped-pin" viewBox="0 0 384 512" fill="#E11D48">' +
+        '<path d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0zM192 272c44.183 0 80-35.817 80-80s-35.817-80-80-80-80 35.817-80 80 35.817 80 80 80z"/>' +
+        '</svg>';
+
+      var pinIcon = L.divIcon({
+        className: 'custom-dropped-pin',
+        html: pinSvg,
+        iconSize: [38, 46],
+        iconAnchor: [19, 46]
+      });
+
+      if (manualPinMarker) {
+        manualPinMarker.setLatLng([lat, lng]);
+      } else {
+        manualPinMarker = L.marker([lat, lng], { icon: pinIcon, zIndexOffset: 1000 }).addTo(map);
+      }
+    }
+
+    function clearDroppedPin() {
+      if (manualPinMarker) {
+        map.removeLayer(manualPinMarker);
+        manualPinMarker = null;
+      }
+    }
+
+    function getCategoryClass(category) {
+      var cat = (category || '').toLowerCase();
+      if (cat.indexOf('food') >= 0) return 'pin-food';
+      if (cat.indexOf('medical') >= 0) return 'pin-medical';
+      if (cat.indexOf('blood') >= 0) return 'pin-blood';
+      if (cat.indexOf('education') >= 0) return 'pin-education';
+      if (cat.indexOf('shelter') >= 0) return 'pin-shelter';
+      return 'pin-elderly';
+    }
+
+    function updateNeedsMarkers(needsJson) {
+      if (!needsLayerGroup) return;
+      needsLayerGroup.clearLayers();
+
+      var needs = [];
+      try {
+        needs = typeof needsJson === 'string' ? JSON.parse(needsJson) : needsJson;
+      } catch (e) {
+        console.error('Error parsing needsJson:', e);
+        return;
+      }
+
+      needs.forEach(function(item) {
+        if (!item.latitude || !item.longitude) return;
+
+        var pinClass = getCategoryClass(item.category);
+        var emoji = item.emoji || '🤝';
+
+        var icon = L.divIcon({
+          className: 'category-pin ' + pinClass,
+          html: emoji,
+          iconSize: [36, 36],
+          iconAnchor: [18, 18],
+          popupAnchor: [0, -18]
+        });
+
+        var marker = L.marker([item.latitude, item.longitude], { icon: icon });
+
+        // Tooltip popup
+        var popupHtml = '<div class="popup-title">' + (item.title || 'Community Need') + '</div>' +
+          '<div class="popup-meta"><span>📍 ' + (item.location || '') + '</span> • <span>' + (item.distanceKm ? item.distanceKm + ' km away' : '') + '</span></div>' +
+          '<div style="margin-top: 4px;"><span class="popup-badge" style="background:#EFF6FF;color:#1D4ED8;">' + (item.category || '') + '</span></div>';
+
+        marker.bindPopup(popupHtml);
+
+        marker.on('click', function() {
+          if (window.AndroidBridge && window.AndroidBridge.onNeedMarkerClicked) {
+            window.AndroidBridge.onNeedMarkerClicked(item.id);
+          }
+        });
+
+        needsLayerGroup.addLayer(marker);
+      });
+    }
+
+    // Auto-init with Indore coords on load
+    window.addEventListener('DOMContentLoaded', function() {
+      initMap(centerLat, centerLng, currentRadiusKm);
+    });
+  </script>
+</body>
+</html>

@@ -16,13 +16,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sahaaye.data.model.SahaayeLocation
-import com.sahaaye.data.repository.NeedsRepository
+import com.sahaaye.data.service.WorldwideLocationService
 import com.sahaaye.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,20 +35,25 @@ fun LocationSearchBottomSheet(
     onSelectOnMapClick: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    val allLocations = remember { SahaayeLocation.SAMPLE_LOCATIONS }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
-    val filteredLocations = remember(searchQuery) {
-        if (searchQuery.trim().isEmpty()) {
-            allLocations
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
+    var locationResults by remember { mutableStateOf(SahaayeLocation.SAMPLE_LOCATIONS) }
+
+    // Debounced Worldwide Google Maps-style Geocoding
+    LaunchedEffect(searchQuery) {
+        val trimmed = searchQuery.trim()
+        if (trimmed.isEmpty()) {
+            locationResults = SahaayeLocation.SAMPLE_LOCATIONS
+            isSearching = false
         } else {
-            val q = searchQuery.trim().lowercase()
-            allLocations.filter { loc ->
-                loc.name.lowercase().contains(q) ||
-                loc.fullAddress.lowercase().contains(q) ||
-                loc.locality.lowercase().contains(q) ||
-                loc.placeType.lowercase().contains(q)
-            }
+            isSearching = true
+            delay(350) // 350ms debounce
+            val results = WorldwideLocationService.searchLocations(trimmed, context)
+            locationResults = results
+            isSearching = false
         }
     }
 
@@ -83,7 +91,7 @@ fun LocationSearchBottomSheet(
                         color = TextPrimary
                     )
                     Text(
-                        text = "Search gali, mohalla, colony or select on map",
+                        text = "Search worldwide: gali, city, country, or select on map",
                         fontSize = 12.sp,
                         color = TextSecondary
                     )
@@ -104,7 +112,7 @@ fun LocationSearchBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Google Maps-style Search Input Box
             OutlinedTextField(
@@ -112,9 +120,9 @@ fun LocationSearchBottomSheet(
                 onValueChange = { searchQuery = it },
                 placeholder = {
                     Text(
-                        text = "Search area, street, landmark…",
+                        text = "Search city, colony, gali, landmark worldwide…",
                         color = TextMuted,
-                        fontSize = 14.sp
+                        fontSize = 13.sp
                     )
                 },
                 leadingIcon = {
@@ -125,7 +133,13 @@ fun LocationSearchBottomSheet(
                     )
                 },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
+                    if (isSearching) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = BrandPrimary
+                        )
+                    } else if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
@@ -148,7 +162,7 @@ fun LocationSearchBottomSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Quick Actions: [Use Current Location] & [Select on Map]
+            // Quick Actions: [Use Current GPS] & [Select on Map]
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -160,8 +174,15 @@ fun LocationSearchBottomSheet(
                     modifier = Modifier
                         .weight(1f)
                         .clickable {
-                            onLocationSelected(SahaayeLocation.DEFAULT)
-                            onDismissRequest()
+                            coroutineScope.launch {
+                                val gpsLoc = WorldwideLocationService.reverseGeocode(
+                                    currentLocation.latitude,
+                                    currentLocation.longitude,
+                                    context
+                                )
+                                onLocationSelected(gpsLoc)
+                                onDismissRequest()
+                            }
                         }
                 ) {
                     Row(
@@ -190,7 +211,7 @@ fun LocationSearchBottomSheet(
                                 color = BrandPrimary
                             )
                             Text(
-                                text = "Using Device GPS",
+                                text = "Auto Detect Location",
                                 fontSize = 10.sp,
                                 color = TextSecondary
                             )
@@ -235,7 +256,7 @@ fun LocationSearchBottomSheet(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "Drag & Drop Pin",
+                                text = "Interactive Map Pin",
                                 fontSize = 10.sp,
                                 color = TextSecondary
                             )
@@ -247,13 +268,26 @@ fun LocationSearchBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Suggestions List Heading
-            Text(
-                text = if (searchQuery.isNotEmpty()) "SEARCH RESULTS" else "POPULAR LOCALITIES IN INDORE",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextMuted,
-                letterSpacing = 0.8.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (searchQuery.isNotEmpty()) "SEARCH RESULTS (WORLDWIDE)" else "POPULAR SUGGESTIONS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextMuted,
+                    letterSpacing = 0.8.sp
+                )
+                if (locationResults.isNotEmpty()) {
+                    Text(
+                        text = "${locationResults.size} places",
+                        fontSize = 10.sp,
+                        color = TextMuted
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -264,76 +298,17 @@ fun LocationSearchBottomSheet(
                     .heightIn(max = 380.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // If user entered a custom query not in list, provide dynamic option
-                if (searchQuery.trim().isNotEmpty() && filteredLocations.none { it.name.equals(searchQuery.trim(), ignoreCase = true) }) {
-                    item {
-                        Surface(
-                            color = BrandPrimaryLight.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.3f)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    val customLoc = SahaayeLocation(
-                                        id = "custom_${System.currentTimeMillis()}",
-                                        name = searchQuery.trim(),
-                                        fullAddress = "${searchQuery.trim()}, Indore, Madhya Pradesh",
-                                        locality = "Custom Location",
-                                        latitude = 22.7196 + (Math.random() - 0.5) * 0.04,
-                                        longitude = 75.8577 + (Math.random() - 0.5) * 0.04,
-                                        placeType = "Custom"
-                                    )
-                                    onLocationSelected(customLoc)
-                                    onDismissRequest()
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .background(BrandPrimary, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search",
-                                        tint = TextInverted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Search \"${searchQuery.trim()}\"",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = BrandPrimary
-                                    )
-                                    Text(
-                                        text = "Use this exact address in Indore, MP",
-                                        fontSize = 11.sp,
-                                        color = TextSecondary
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                items(filteredLocations) { loc ->
-                    val isSelected = loc.id == currentLocation.id || loc.name == currentLocation.name
-                    val distKm = NeedsRepository.calculateDistance(
-                        currentLocation.latitude, currentLocation.longitude,
-                        loc.latitude, loc.longitude
-                    )
+                items(locationResults, key = { it.id }) { loc ->
+                    val isSelected = loc.id == currentLocation.id ||
+                            (loc.latitude == currentLocation.latitude && loc.longitude == currentLocation.longitude)
 
                     Surface(
                         color = if (isSelected) BrandPrimaryLight else CardSurface,
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, if (isSelected) BrandPrimary else BorderSubtle),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) BrandPrimary else BorderSubtle.copy(alpha = 0.7f)
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
@@ -342,36 +317,35 @@ fun LocationSearchBottomSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
+                            modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Location Icon Pin
+                            // Location Pin Icon
                             Box(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .background(
-                                        if (isSelected) BrandPrimary else BorderLight,
+                                        if (isSelected) BrandPrimary else Color(0xFFF1F5F9),
                                         CircleShape
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = if (isSelected) Icons.Default.Check else Icons.Default.LocationOn,
+                                    imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Place,
                                     contentDescription = "Location",
                                     tint = if (isSelected) TextInverted else BrandPrimary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
 
                             Spacer(modifier = Modifier.width(12.dp))
 
-                            // Details: Name, Gali/Colony/Full Address
+                            // Details
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = loc.name,
@@ -379,18 +353,24 @@ fun LocationSearchBottomSheet(
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) BrandPrimary else TextPrimary,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
-                                    Surface(
-                                        color = BorderLight,
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
-                                        Text(
-                                            text = loc.placeType,
-                                            fontSize = 9.sp,
-                                            color = TextSecondary,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                        )
+
+                                    if (loc.placeType.isNotBlank()) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            color = if (isSelected) BrandPrimary.copy(alpha = 0.15f) else Color(0xFFF1F5F9),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text(
+                                                text = loc.placeType,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = TextSecondary,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
                                     }
                                 }
 
@@ -400,28 +380,10 @@ fun LocationSearchBottomSheet(
                                     text = loc.fullAddress,
                                     fontSize = 11.sp,
                                     color = TextSecondary,
+                                    lineHeight = 15.sp,
                                     maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    lineHeight = 15.sp
+                                    overflow = TextOverflow.Ellipsis
                                 )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "📍 ${loc.locality}",
-                                        fontSize = 10.sp,
-                                        color = TextMuted
-                                    )
-                                    if (distKm > 0.0) {
-                                        Text(
-                                            text = " • $distKm km away",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = StatNearby
-                                        )
-                                    }
-                                }
                             }
                         }
                     }

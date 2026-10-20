@@ -185,4 +185,136 @@ object NeedsRepository {
         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
         return (r * c * 10.0).roundToInt() / 10.0
     }
+
+    /**
+     * Dynamically generates and computes realistic community needs distributed
+     * around any active center location anywhere in the world.
+     */
+    fun getNeedsForLocation(centerLat: Double, centerLng: Double, locationName: String = "Active Area"): List<NeedItem> {
+        val cosLat = cos(Math.toRadians(centerLat)).coerceAtLeast(0.1)
+        val kmToLat = 1.0 / 111.0
+        val kmToLon = 1.0 / (111.0 * cosLat)
+
+        val cleanLoc = locationName.split(",").firstOrNull()?.trim() ?: "Local"
+
+        val templateNeeds = listOf(
+            NeedItem(
+                id = "need_loc_1",
+                title = "Emergency Food Ration",
+                location = "Near $cleanLoc Market",
+                timeAgo = "12 mins ago",
+                category = "Food",
+                emoji = "🍚",
+                latitude = centerLat + 0.45 * kmToLat,
+                longitude = centerLng + 0.65 * kmToLon,
+                distanceKm = 0.8,
+                tagColor = BrandPrimary,
+                tagBg = BrandPrimaryLight,
+                description = "Daily-wage worker family needs basic rice, wheat flour and dal assistance."
+            ),
+            NeedItem(
+                id = "need_loc_2",
+                title = "Emergency Blood Donor (O+)",
+                location = "Near $cleanLoc Hospital",
+                timeAgo = "25 mins ago",
+                category = "Medical",
+                emoji = "🩸",
+                latitude = centerLat - 0.95 * kmToLat,
+                longitude = centerLng + 1.15 * kmToLon,
+                distanceKm = 1.5,
+                tagColor = AccentRose,
+                tagBg = AccentRoseBg,
+                description = "Urgent O+ blood donor needed for trauma patient."
+            ),
+            NeedItem(
+                id = "need_loc_3",
+                title = "Prescription Medicines Support",
+                location = "Old Colony, $cleanLoc",
+                timeAgo = "45 mins ago",
+                category = "Medical",
+                emoji = "💊",
+                latitude = centerLat + 1.70 * kmToLat,
+                longitude = centerLng - 1.65 * kmToLon,
+                distanceKm = 2.4,
+                tagColor = AccentRose,
+                tagBg = AccentRoseBg,
+                description = "Urgent asthma inhaler and diabetes medicines required for senior citizen."
+            ),
+            NeedItem(
+                id = "need_loc_4",
+                title = "School Books & Notebooks",
+                location = "Govt School Road, $cleanLoc",
+                timeAgo = "1 hour ago",
+                category = "Education",
+                emoji = "📚",
+                latitude = centerLat - 2.25 * kmToLat,
+                longitude = centerLng - 2.20 * kmToLon,
+                distanceKm = 3.2,
+                tagColor = StatNearby,
+                tagBg = StatNearbyBg,
+                description = "Stationery and backpacks needed for 15 underprivileged students."
+            ),
+            NeedItem(
+                id = "need_loc_5",
+                title = "Blankets & Warm Clothes",
+                location = "Shelter Camp, $cleanLoc",
+                timeAgo = "2 hours ago",
+                category = "Shelter",
+                emoji = "🏠",
+                latitude = centerLat + 3.10 * kmToLat,
+                longitude = centerLng + 3.25 * kmToLon,
+                distanceKm = 4.5,
+                tagColor = StatProgress,
+                tagBg = StatProgressBg,
+                description = "Winter blankets and sweaters needed for temporary shelter residents."
+            ),
+            NeedItem(
+                id = "need_loc_6",
+                title = "Elderly Care Companion",
+                location = "Civil Lines, $cleanLoc",
+                timeAgo = "3 hours ago",
+                category = "Elderly",
+                emoji = "👴",
+                latitude = centerLat - 4.80 * kmToLat,
+                longitude = centerLng + 4.75 * kmToLon,
+                distanceKm = 6.8,
+                tagColor = StatRating,
+                tagBg = StatRatingBg,
+                description = "Volunteer companionship and grocery delivery for an elderly couple."
+            ),
+            NeedItem(
+                id = "need_loc_7",
+                title = "Community Kitchen Meal Supplies",
+                location = "Outer Sector, $cleanLoc",
+                timeAgo = "4 hours ago",
+                category = "Food",
+                emoji = "🍲",
+                latitude = centerLat + 6.50 * kmToLat,
+                longitude = centerLng - 6.60 * kmToLon,
+                distanceKm = 9.2,
+                tagColor = BrandPrimary,
+                tagBg = BrandPrimaryLight,
+                description = "Oil, pulses, and grain supplies needed for local free meal distribution."
+            ),
+            NeedItem(
+                id = "need_loc_8",
+                title = "Rural Health Center First Aid",
+                location = "Primary Clinic, $cleanLoc Bypass",
+                timeAgo = "5 hours ago",
+                category = "Medical",
+                emoji = "🏥",
+                latitude = centerLat - 10.20 * kmToLat,
+                longitude = centerLng + 10.30 * kmToLon,
+                distanceKm = 14.5,
+                tagColor = AccentRose,
+                tagBg = AccentRoseBg,
+                description = "Emergency bandages, antiseptic, and ORS supplies needed."
+            )
+        )
+
+        return templateNeeds.map { item ->
+            val dist = calculateDistance(centerLat, centerLng, item.latitude, item.longitude)
+            item.copy(distanceKm = dist)
+        }.sortedBy { it.distanceKm }
+    }
 }

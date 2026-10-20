@@ -31,7 +31,9 @@ fun DashboardScreen(
     onSelectOnMapClick: () -> Unit = {}
 ) {
     val stats = remember { NeedsRepository.sampleStats }
-    val needs = remember { NeedsRepository.sampleNeeds }
+    val needs = remember(currentLocation) {
+        NeedsRepository.getNeedsForLocation(currentLocation.latitude, currentLocation.longitude, currentLocation.name)
+    }
     val quickActions = remember { NeedsRepository.sampleQuickActions }
     var showLocationSheet by remember { mutableStateOf(false) }
     var activeBottomTab by remember { mutableStateOf("dashboard") }
