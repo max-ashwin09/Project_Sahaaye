@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import android.widget.Toast
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -22,10 +24,13 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.SahaayeLocation
+import com.sahaaye.data.service.NeedsApiService
 import com.sahaaye.ui.theme.*
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +48,10 @@ fun ReportNeedFormScreen(
 
     var titleError by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
+    var uploadStatusText by remember { mutableStateOf("Publish Need to Community") }
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     val categories = listOf(
         Triple("Food", "🍚", BrandPrimary),
@@ -401,7 +410,36 @@ fun ReportNeedFormScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ── 6. Submit Button ──────────────────────────────────────────────
+            // ── 6. Server Destination & Verification Notice ───────────────────
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = CardSurface,
+                border = BorderStroke(1.dp, BorderLight),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF10B981))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Server Sync: Active (Uploading to Sahaaye Cloud / ${capturedLocation.name.take(24)}…)",
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // ── 7. Submit Button with Direct Cloud Upload ─────────────────────
             Button(
                 onClick = {
                     if (title.trim().isEmpty()) {
@@ -409,28 +447,79 @@ fun ReportNeedFormScreen(
                         return@Button
                     }
                     isSubmitting = true
+                    uploadStatusText = "Uploading photo & geo-coordinates to server…"
 
-                    val selectedCatInfo = categories.find { it.first == selectedCategory } ?: categories.first()
+                    coroutineScope.launch {
+                        val selectedCatInfo = categories.find { it.first == selectedCategory } ?: categories.first()
 
-                    val newNeed = NeedItem(
-                        id = "user_need_${System.currentTimeMillis()}",
-                        title = title.trim(),
-                        location = capturedLocation.name,
-                        timeAgo = "Just now",
-                        category = selectedCategory,
-                        emoji = selectedCatInfo.second,
-                        latitude = capturedLocation.latitude,
-                        longitude = capturedLocation.longitude,
-                        distanceKm = 0.0,
-                        tagColor = selectedCatInfo.third,
-                        tagBg = selectedCatInfo.third.copy(alpha = 0.15f),
-                        description = description.trim(),
-                        imagePath = capturedPhoto.absolutePath,
-                        isUserReported = true,
-                        urgency = selectedUrgency
-                    )
+                        // Call backend server (POST /api/v1/needs)
+                        val uploadResult = NeedsApiService.uploadReportedNeed(
+                            photoFile = capturedPhoto,
+                            title = title.trim(),
+                            description = description.trim(),
+                            category = selectedCategory,
+                            urgency = selectedUrgency,
+                            latitude = capturedLocation.latitude,
+                            longitude = capturedLocation.longitude,
+                            location = capturedLocation.name
+                        )
 
-                    onSubmitNeed(newNeed)
+                        val finalNeed = if (uploadResult.isSuccess) {
+                            val serverResponse = uploadResult.getOrNull()!!
+                            Toast.makeText(
+                                context,
+                                "✓ Uploaded to Sahaaye Server successfully!",
+                                Toast.LENGTH_LONG
+                            ).show()
+
+                            NeedItem(
+                                id = serverResponse.id,
+                                title = serverResponse.title,
+                                location = serverResponse.location,
+                                timeAgo = "Just now",
+                                category = serverResponse.category,
+                                emoji = selectedCatInfo.second,
+                                latitude = serverResponse.latitude,
+                                longitude = serverResponse.longitude,
+                                distanceKm = 0.0,
+                                tagColor = selectedCatInfo.third,
+                                tagBg = selectedCatInfo.third.copy(alpha = 0.15f),
+                                description = serverResponse.description,
+                                imagePath = capturedPhoto.absolutePath,
+                                isUserReported = true,
+                                urgency = serverResponse.urgency
+                            )
+                        } else {
+                            val errorMsg = uploadResult.exceptionOrNull()?.message ?: "Server unreachable"
+                            Toast.makeText(
+                                context,
+                                "Report saved locally. (Offline sync active: $errorMsg)",
+                                Toast.LENGTH_LONG
+                            ).show()
+
+                            NeedItem(
+                                id = "user_need_${System.currentTimeMillis()}",
+                                title = title.trim(),
+                                location = capturedLocation.name,
+                                timeAgo = "Just now",
+                                category = selectedCategory,
+                                emoji = selectedCatInfo.second,
+                                latitude = capturedLocation.latitude,
+                                longitude = capturedLocation.longitude,
+                                distanceKm = 0.0,
+                                tagColor = selectedCatInfo.third,
+                                tagBg = selectedCatInfo.third.copy(alpha = 0.15f),
+                                description = description.trim(),
+                                imagePath = capturedPhoto.absolutePath,
+                                isUserReported = true,
+                                urgency = selectedUrgency
+                            )
+                        }
+
+                        isSubmitting = false
+                        uploadStatusText = "Publish Need to Community"
+                        onSubmitNeed(finalNeed)
+                    }
                 },
                 enabled = !isSubmitting,
                 shape = RoundedCornerShape(14.dp),
@@ -445,9 +534,16 @@ fun ReportNeedFormScreen(
                         color = Color.White,
                         strokeWidth = 2.dp
                     )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Uploading to Server…",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 } else {
                     Icon(
-                        imageVector = Icons.Default.Send,
+                        imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Publish",
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
@@ -466,3 +562,4 @@ fun ReportNeedFormScreen(
         }
     }
 }
+

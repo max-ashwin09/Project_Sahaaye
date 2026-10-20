@@ -1,2 +1,1 @@
-// Module: needs
-export {};
+export { needsRouter } from './router';

@@ -1,8 +1,9 @@
 import { app } from './app';
 import { env } from './config/env';
 
-const server = app.listen(env.PORT, () => {
-  console.log(`SAHAAYE Backend server running on port ${env.PORT} in ${env.NODE_ENV} mode`);
+const PORT = parseInt(env.PORT, 10) || 5001;
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`SAHAAYE Backend server running on http://0.0.0.0:${PORT} in ${env.NODE_ENV} mode`);
 });
 
 process.on('SIGTERM', () => {

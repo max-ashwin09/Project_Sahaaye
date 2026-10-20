@@ -1,12 +1,17 @@
 package com.sahaaye.data.repository
 
 import android.content.Context
+import com.sahaaye.data.api.SahaayeApiClient
 import com.sahaaye.data.db.NeedsDatabaseHelper
 import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.QuickActionModel
 import com.sahaaye.data.model.StatCardModel
 import com.sahaaye.ui.theme.*
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.*
 
 object NeedsRepository {
@@ -197,6 +202,26 @@ object NeedsRepository {
         userReportedNeeds.removeAll { it.id == need.id }
         userReportedNeeds.add(0, need)
         dbHelper?.insertReportedNeed(need)
+
+        // Asynchronously sync with central backend database
+        CoroutineScope(Dispatchers.IO).launch {
+            val imgFile = need.imagePath?.let { File(it) }?.takeIf { it.exists() }
+            SahaayeApiClient.postNeedToBackend(need, imgFile)
+        }
+    }
+
+    suspend fun syncWithBackend(lat: Double, lng: Double) {
+        try {
+            val serverNeeds = SahaayeApiClient.fetchNeedsFromBackend(lat, lng)
+            if (serverNeeds.isNotEmpty()) {
+                for (sn in serverNeeds) {
+                    if (!userReportedNeeds.any { it.id == sn.id }) {
+                        userReportedNeeds.add(sn)
+                        dbHelper?.insertReportedNeed(sn)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     // Calculate distance using Haversine formula

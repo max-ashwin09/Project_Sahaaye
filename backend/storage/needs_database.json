@@ -1,0 +1,81 @@
+[
+  {
+    "id": "1ce8ea1b-cb5f-4b69-8563-ed4f8cc15c28",
+    "title": "Urgent Food Ration needed near Anand Vihar",
+    "description": "Family of 4 requires dry ration pack immediately.",
+    "category": "Food",
+    "urgency": "Urgent",
+    "latitude": 28.6469,
+    "longitude": 77.3164,
+    "location": "Anand Vihar, Delhi",
+    "imageUrl": "/storage/needs/need_a2067bb5-751c-4ec4-9773-0c01446eb914_1792495796241.jpg",
+    "status": "OPEN",
+    "isMinorInvolved": false,
+    "createdAt": "2026-10-20T11:29:56.241Z"
+  },
+  {
+    "id": "n1",
+    "title": "Food Support for Family",
+    "description": "Family of 4 needs basic ration assistance (flour, rice, pulses) for this week.",
+    "category": "Food",
+    "urgency": "High",
+    "latitude": 22.7533,
+    "longitude": 75.8937,
+    "location": "Vijay Nagar, Indore",
+    "status": "OPEN",
+    "isMinorInvolved": false,
+    "createdAt": "2026-10-20T11:19:56.180Z"
+  },
+  {
+    "id": "n2",
+    "title": "Medical Help Required",
+    "description": "Urgent prescription medicines required for elderly patient with diabetes.",
+    "category": "Medical",
+    "urgency": "Critical",
+    "latitude": 22.7244,
+    "longitude": 75.8839,
+    "location": "Palasia, Indore",
+    "status": "OPEN",
+    "isMinorInvolved": false,
+    "createdAt": "2026-10-20T11:04:56.182Z"
+  },
+  {
+    "id": "n3",
+    "title": "School Supplies Needed",
+    "description": "Notebooks, stationery, and backpacks needed for 12 underprivileged primary school students.",
+    "category": "Education",
+    "urgency": "Normal",
+    "latitude": 22.757,
+    "longitude": 75.888,
+    "location": "Scheme 54, Indore",
+    "status": "OPEN",
+    "isMinorInvolved": false,
+    "createdAt": "2026-10-20T10:29:56.182Z"
+  },
+  {
+    "id": "n4",
+    "title": "Elderly Care Support",
+    "description": "Volunteer companionship and grocery delivery assistance needed for senior citizen living alone.",
+    "category": "Elderly",
+    "urgency": "Normal",
+    "latitude": 22.698,
+    "longitude": 75.835,
+    "location": "Annapurna Road, Indore",
+    "status": "OPEN",
+    "isMinorInvolved": false,
+    "createdAt": "2026-10-20T09:29:56.182Z"
+  },
+  {
+    "id": "n5",
+    "title": "Blankets & Warm Clothes",
+    "description": "Warm blankets and sweaters needed for winter night shelter distribution.",
+    "category": "Shelter",
+    "urgency": "Normal",
+    "latitude": 22.7196,
+    "longitude": 75.8577,
+    "location": "Rajwada, Indore",
+    "status": "OPEN",
+    "isMinorInvolved": false,
+    "createdAt": "2026-10-20T08:29:56.182Z"
+  }
+]

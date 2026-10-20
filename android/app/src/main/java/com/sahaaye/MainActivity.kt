@@ -87,6 +87,11 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    // Synchronize with central backend database whenever location updates
+                    LaunchedEffect(currentLocation) {
+                        NeedsRepository.syncWithBackend(currentLocation.latitude, currentLocation.longitude)
+                    }
+
                     BackHandler(enabled = currentScreen != "dashboard" && currentScreen != "splash") {
                         currentScreen = "dashboard"
                     }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReportNeed from './ReportNeed';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface NavItem {
@@ -330,8 +331,54 @@ const Dashboard: React.FC = () => {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [needsList, setNeedsList] = useState<Need[]>(NEEDS);
   const addRipple = useRipple();
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchLiveNeeds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/needs');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.needs && data.needs.length > 0) {
+          const mapped: Need[] = data.needs.map((item: any) => {
+            const cat = item.category || 'Food';
+            const isFood = cat.toLowerCase().includes('food');
+            const isMed = cat.toLowerCase().includes('med');
+            const isEdu = cat.toLowerCase().includes('edu');
+            const isShelter = cat.toLowerCase().includes('shelter');
+            const isElderly = cat.toLowerCase().includes('elder');
+
+            const emoji = isFood ? '🍚' : isMed ? '💊' : isEdu ? '📚' : isShelter ? '🏠' : isElderly ? '👴' : '🤝';
+            const tagColor = isFood ? '#2563eb' : isMed ? '#e11d48' : isEdu ? '#0d9488' : isShelter ? '#7c3aed' : '#d97706';
+            const tagBorder = isFood ? '#bfdbfe' : isMed ? '#fecdd3' : isEdu ? '#99f6e4' : isShelter ? '#ddd6fe' : '#fde68a';
+            const tagBg = isFood ? '#eff6ff' : isMed ? '#fff1f2' : isEdu ? '#f0fdfa' : isShelter ? '#f5f3ff' : '#fef3c7';
+
+            return {
+              id: item.id,
+              title: item.title,
+              location: item.location || 'Community Location',
+              timeAgo: item.distanceKm ? `${item.distanceKm} km away` : 'Recently',
+              emoji,
+              tagLabel: item.category || 'Need',
+              tagColor,
+              tagBorder,
+              tagBg,
+            };
+          });
+          setNeedsList(mapped);
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLiveNeeds();
+    const interval = setInterval(fetchLiveNeeds, 5000);
+    return () => clearInterval(interval);
+  }, [fetchLiveNeeds]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -463,9 +510,19 @@ const Dashboard: React.FC = () => {
 
         {/* ── PAGE CONTENT ───────────────────────────────────────────────── */}
         <main className="page-content">
+          {activeNav === 'report' ? (
+            <ReportNeed
+              onCancel={() => handleNav('dashboard')}
+              onSuccess={() => {
+                showToast('🎉 Need reported and published to community!');
+                handleNav('dashboard');
+              }}
+            />
+          ) : (
+            <>
+              {/* ── HERO BANNER ─────────────────────────────────────────────── */}
+              <div className="hero-banner">
 
-          {/* ── HERO BANNER ─────────────────────────────────────────────── */}
-          <div className="hero-banner">
             <div className="hero-text">
               <h1>Welcome Back, Rohit! 👋</h1>
               <p>Small actions create big changes. Let's keep making the difference.</p>
@@ -534,7 +591,7 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
               <div className="needs-list">
-                {NEEDS.map((need) => (
+                {needsList.map((need) => (
                   <div
                     key={need.id}
                     className="need-item ripple-container"
@@ -781,7 +838,10 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
+          </>
+        )}
         </main>
+
       </div>
 
       {/* ═══ TOAST NOTIFICATION ═════════════════════════════════════════════ */}
