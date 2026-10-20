@@ -252,77 +252,112 @@ body {
   justify-content: center;
 }
 
-.sidebar-bottom {
-  padding: 16px 10px;
-  border-top: 1px solid var(--border-light);
-}
-
-.sidebar-cta {
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #0d5c63 0%, #14b8a6 100%);
-  padding: 16px;
-  color: white;
-  text-align: center;
+/* ============================================================
+   COMMUNITY IMPACT BANNER (BOTTOM OF DASHBOARD)
+   ============================================================ */
+.community-impact-banner {
+  margin-top: 24px;
+  background: linear-gradient(135deg, #0d5c63 0%, #0d9488 50%, #14b8a6 100%);
+  border-radius: var(--radius-lg);
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(13, 148, 136, 0.2);
   cursor: pointer;
-  overflow: hidden;
   position: relative;
-  margin-bottom: 16px;
+  overflow: hidden;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.sidebar-cta:hover {
+.community-impact-banner:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(13,148,136,0.4);
+  box-shadow: 0 14px 36px rgba(13, 148, 136, 0.3);
 }
 
-.sidebar-cta:active {
-  transform: scale(0.97);
+.community-impact-banner:active {
+  transform: scale(0.99);
 }
 
-.sidebar-cta-emoji {
-  font-size: 32px;
-  display: block;
-  margin-bottom: 6px;
+.impact-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.impact-banner-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
   animation: float 3s ease-in-out infinite;
 }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  50% { transform: translateY(-4px); }
 }
 
-.sidebar-cta h4 {
-  font-size: 13px;
+.impact-banner-info h3 {
+  font-family: 'Poppins', sans-serif;
+  font-size: 18px;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin: 0 0 4px 0;
+  color: #ffffff;
 }
 
-.sidebar-cta p {
-  font-size: 11px;
-  opacity: 0.8;
-  margin-bottom: 10px;
-  line-height: 1.4;
+.impact-banner-info p {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  max-width: 650px;
+  line-height: 1.5;
 }
 
-.sidebar-cta-btn {
-  background: rgba(255,255,255,0.2);
-  border: 1px solid rgba(255,255,255,0.3);
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 20px;
+.impact-banner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 50px;
+  background: #ffffff;
+  color: #0d5c63;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: none;
   cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
   transition: all var(--transition-fast);
-  width: 100%;
+  flex-shrink: 0;
+  font-family: inherit;
 }
 
-.sidebar-cta-btn:hover {
-  background: rgba(255,255,255,0.3);
+.impact-banner-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  background: #f0fdfa;
 }
 
-.sidebar-cta-btn:active {
-  transform: scale(0.96);
+@media (max-width: 768px) {
+  .community-impact-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+  .impact-banner-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ============================================================

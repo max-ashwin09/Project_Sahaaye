@@ -454,18 +454,6 @@ const Dashboard: React.FC = () => {
             </button>
           ))}
         </nav>
-
-        <div className="sidebar-bottom">
-          <div
-            className="sidebar-cta ripple-container"
-            onClick={(e) => { addRipple(e); showToast('Together for a Kinder Indore! 🌟'); }}
-          >
-            <span className="sidebar-cta-emoji">❤️</span>
-            <h4>Together for a Kinder Indore</h4>
-            <p>Every act of kindness matters in our community.</p>
-            <button className="sidebar-cta-btn">→</button>
-          </div>
-        </div>
       </aside>
 
       {/* ═══ MAIN AREA ══════════════════════════════════════════════════════ */}
@@ -875,6 +863,27 @@ const Dashboard: React.FC = () => {
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* ── COMMUNITY IMPACT BANNER ─────────────────────────────────── */}
+          <div
+            className="community-impact-banner ripple-container"
+            onClick={(e) => { addRipple(e); showToast('Together for a Kinder Indore! 🌟'); }}
+          >
+            <div className="impact-banner-content">
+              <div className="impact-banner-icon">❤️</div>
+              <div className="impact-banner-info">
+                <h3>Together for a Kinder Indore</h3>
+                <p>Every act of kindness matters in our community. Join local volunteers, discover needs near you, and make a real difference today.</p>
+              </div>
+            </div>
+            <button
+              className="impact-banner-btn ripple-container"
+              onClick={(e) => { e.stopPropagation(); handleNav('nearby'); }}
+            >
+              <span>Explore Needs</span>
+              <span>→</span>
+            </button>
           </div>
           </>
         )}
