@@ -53,39 +53,51 @@ fun TopHeaderBar(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Centered SAHAAYE Logo & Name
+            // 1. Centered SAHAAYE Logo & Name (Larger & Prominent)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.clickable { onLocationClick() }
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.sahaaye_logo),
-                    contentDescription = "Sahaaye Logo",
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White,
+                    shadowElevation = 4.dp,
+                    border = BorderStroke(1.dp, BorderSubtle),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.padding(4.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.sahaaye_icon),
+                            contentDescription = "Sahaaye Logo",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = "SAHAAYE",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = BrandPrimary,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 1.sp
                 )
             }
 
             // 2. Centered Slogan directly below Logo
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = "People Help People",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextSecondary
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextSecondary,
+                letterSpacing = 0.3.sp
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // 3. Single Row with 3 elements: [Location Pill] + [Search Box] + [Notification Bell]
             Row(
@@ -101,18 +113,18 @@ fun TopHeaderBar(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = "Location",
                             tint = BrandPrimary,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = selectedLocation,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = TextPrimary
                         )
@@ -129,13 +141,13 @@ fun TopHeaderBar(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
                             tint = TextMuted,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -147,35 +159,42 @@ fun TopHeaderBar(
                     }
                 }
 
-                // Notification Bell with Badge (Right)
+                // Notification Bell with High-Visibility Badge (Right)
                 Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(BorderLight)
-                        .clickable { onNotificationClick() },
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.wrapContentSize(),
+                    contentAlignment = Alignment.TopEnd
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Notifications,
-                        contentDescription = "Notifications",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(19.dp)
-                    )
-                    Box(
+                    Surface(
+                        color = BorderLight,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = (-2).dp, y = 2.dp)
-                            .size(14.dp)
-                            .clip(CircleShape)
-                            .background(AccentRose),
-                        contentAlignment = Alignment.Center
+                            .size(42.dp)
+                            .clickable { onNotificationClick() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.Notifications,
+                                contentDescription = "Notifications",
+                                tint = TextPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    // High-visibility, crisp Notification Badge
+                    Surface(
+                        color = Color(0xFFE11D48),
+                        shape = CircleShape,
+                        border = BorderStroke(1.5.dp, Color.White),
+                        shadowElevation = 3.dp,
+                        modifier = Modifier.offset(x = 4.dp, y = (-4).dp)
                     ) {
                         Text(
                             text = "12",
-                            color = TextInverted,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                         )
                     }
                 }
