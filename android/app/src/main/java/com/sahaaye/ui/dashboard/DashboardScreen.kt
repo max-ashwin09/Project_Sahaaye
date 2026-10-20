@@ -29,7 +29,9 @@ fun DashboardScreen(
     onNavigateToReport: () -> Unit,
     onNavigateToActivities: () -> Unit,
     onNeedDetailClick: (NeedItem) -> Unit,
-    onSelectOnMapClick: () -> Unit = {}
+    onSelectOnMapClick: () -> Unit = {},
+    onLiveLocationClick: () -> Unit = {},
+    isGpsLoading: Boolean = false
 ) {
     val stats = remember { NeedsRepository.sampleStats }
     val needs = remember(currentLocation) {
@@ -149,7 +151,9 @@ fun DashboardScreen(
                 currentLongitude = currentLocation.longitude,
                 radiusKm = currentRadiusKm,
                 onNeedPinClick = onNeedDetailClick,
-                onFullMapClick = onNavigateToNearby
+                onFullMapClick = onNavigateToNearby,
+                onGpsClick = onLiveLocationClick,
+                isGpsLoading = isGpsLoading
             )
 
             // 4. Needs Near You List

@@ -1,5 +1,9 @@
 package com.sahaaye.ui.location
 
+import android.Manifest
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sahaaye.data.model.SahaayeLocation
+import com.sahaaye.data.service.LiveLocationService
 import com.sahaaye.data.service.WorldwideLocationService
 import com.sahaaye.ui.theme.*
 import kotlinx.coroutines.delay
@@ -41,6 +46,35 @@ fun LocationSearchBottomSheet(
     var searchQuery by remember { mutableStateOf("") }
     var isSearching by remember { mutableStateOf(false) }
     var locationResults by remember { mutableStateOf(SahaayeLocation.SAMPLE_LOCATIONS) }
+    var isDetectingLocation by remember { mutableStateOf(false) }
+
+    val fetchGps = {
+        coroutineScope.launch {
+            isDetectingLocation = true
+            Toast.makeText(context, "📡 Accessing GPS & fetching live location...", Toast.LENGTH_SHORT).show()
+            val live = LiveLocationService.fetchCurrentLiveLocation(context)
+            isDetectingLocation = false
+            if (live != null) {
+                onLocationSelected(live)
+                Toast.makeText(context, "📍 Real GPS: ${live.name}", Toast.LENGTH_SHORT).show()
+                onDismissRequest()
+            } else {
+                Toast.makeText(context, "Could not fetch GPS. Please check location settings.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { perms ->
+        val fineGranted = perms[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseGranted = perms[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        if (fineGranted || coarseGranted) {
+            fetchGps()
+        } else {
+            Toast.makeText(context, "Location permission is required for Live GPS", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Debounced Worldwide Google Maps-style Geocoding
     LaunchedEffect(searchQuery) {
@@ -173,15 +207,16 @@ fun LocationSearchBottomSheet(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .clickable {
-                            coroutineScope.launch {
-                                val gpsLoc = WorldwideLocationService.reverseGeocode(
-                                    currentLocation.latitude,
-                                    currentLocation.longitude,
-                                    context
+                        .clickable(enabled = !isDetectingLocation) {
+                            if (!LiveLocationService.hasLocationPermission(context)) {
+                                locationPermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
                                 )
-                                onLocationSelected(gpsLoc)
-                                onDismissRequest()
+                            } else {
+                                fetchGps()
                             }
                         }
                 ) {
@@ -195,12 +230,20 @@ fun LocationSearchBottomSheet(
                                 .background(BrandPrimary, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.MyLocation,
-                                contentDescription = "GPS",
-                                tint = TextInverted,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            if (isDetectingLocation) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = TextInverted
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.MyLocation,
+                                    contentDescription = "GPS",
+                                    tint = TextInverted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
@@ -211,7 +254,7 @@ fun LocationSearchBottomSheet(
                                 color = BrandPrimary
                             )
                             Text(
-                                text = "Auto Detect Location",
+                                text = if (isDetectingLocation) "Detecting GPS..." else "Auto Detect Location",
                                 fontSize = 10.sp,
                                 color = TextSecondary
                             )

@@ -290,7 +290,9 @@
     }
 
     function recenterMap() {
-      if (radiusCircle) {
+      if (window.AndroidBridge && window.AndroidBridge.onRequestLiveLocation) {
+        window.AndroidBridge.onRequestLiveLocation();
+      } else if (radiusCircle) {
         map.fitBounds(radiusCircle.getBounds(), { padding: [35, 35], maxZoom: 16 });
       } else {
         map.setView([centerLat, centerLng], 14);

@@ -360,7 +360,9 @@ fun LiveMapCard(
     currentLongitude: Double = 75.8577,
     radiusKm: Double = 5.0,
     onNeedPinClick: (NeedItem) -> Unit,
-    onFullMapClick: () -> Unit
+    onFullMapClick: () -> Unit,
+    onGpsClick: () -> Unit = {},
+    isGpsLoading: Boolean = false
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
     val categories = listOf("All", "Food", "Medical", "Education", "Shelter")
@@ -417,8 +419,31 @@ fun LiveMapCard(
                     )
                 }
 
-                TextButton(onClick = onFullMapClick) {
-                    Text("Expand Map ↗", color = BrandPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onGpsClick,
+                        modifier = Modifier.size(32.dp),
+                        enabled = !isGpsLoading
+                    ) {
+                        if (isGpsLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = BrandPrimary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MyLocation,
+                                contentDescription = "Live GPS Location",
+                                tint = BrandPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    TextButton(onClick = onFullMapClick) {
+                        Text("Expand Map ↗", color = BrandPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
 

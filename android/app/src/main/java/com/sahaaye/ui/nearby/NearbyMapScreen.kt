@@ -1,5 +1,6 @@
 package com.sahaaye.ui.nearby
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.ViewGroup
@@ -7,6 +8,9 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -41,6 +45,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.SahaayeLocation
 import com.sahaaye.data.repository.NeedsRepository
+import com.sahaaye.data.service.LiveLocationService
 import com.sahaaye.data.service.WorldwideLocationService
 import com.sahaaye.ui.theme.*
 import kotlinx.coroutines.delay
@@ -51,7 +56,8 @@ import org.json.JSONObject
 class MapWebBridge(
     private val onMapReadyCallback: () -> Unit,
     private val onMapClickCallback: (Double, Double) -> Unit,
-    private val onNeedClickCallback: (String) -> Unit
+    private val onNeedClickCallback: (String) -> Unit,
+    private val onRequestLiveLocationCallback: () -> Unit = {}
 ) {
     @JavascriptInterface
     fun onMapReady() {
@@ -66,6 +72,11 @@ class MapWebBridge(
     @JavascriptInterface
     fun onNeedMarkerClicked(needId: String) {
         onNeedClickCallback(needId)
+    }
+
+    @JavascriptInterface
+    fun onRequestLiveLocation() {
+        onRequestLiveLocationCallback()
     }
 }
 
@@ -115,6 +126,67 @@ fun NearbyMapScreen(
     // Map WebView instance & loaded state
     var mapWebView by remember { mutableStateOf<WebView?>(null) }
     var isMapReady by remember { mutableStateOf(false) }
+    var isFetchingLiveLocation by remember { mutableStateOf(false) }
+
+    // Live GPS Hardware Fetcher & Permission Launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        if (fineGranted || coarseGranted) {
+            coroutineScope.launch {
+                isFetchingLiveLocation = true
+                Toast.makeText(context, "📡 Accessing GPS & fetching live location...", Toast.LENGTH_SHORT).show()
+                val liveLoc = LiveLocationService.fetchCurrentLiveLocation(context)
+                isFetchingLiveLocation = false
+                if (liveLoc != null) {
+                    onLocationChange(liveLoc)
+                    manualPinLocation = null
+                    mapWebView?.evaluateJavascript("clearDroppedPin();", null)
+                    mapWebView?.evaluateJavascript(
+                        "renderActiveLocation(${liveLoc.latitude}, ${liveLoc.longitude}, $selectedRadiusKm, true);",
+                        null
+                    )
+                    Toast.makeText(context, "📍 Real GPS: ${liveLoc.name}", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Could not fetch GPS. Please check device location.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else {
+            Toast.makeText(context, "Location permission is required for Live GPS", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val fetchLiveGps = {
+        if (!LiveLocationService.hasLocationPermission(context)) {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        } else {
+            coroutineScope.launch {
+                isFetchingLiveLocation = true
+                Toast.makeText(context, "📡 Accessing GPS & fetching live location...", Toast.LENGTH_SHORT).show()
+                val liveLoc = LiveLocationService.fetchCurrentLiveLocation(context)
+                isFetchingLiveLocation = false
+                if (liveLoc != null) {
+                    onLocationChange(liveLoc)
+                    manualPinLocation = null
+                    mapWebView?.evaluateJavascript("clearDroppedPin();", null)
+                    mapWebView?.evaluateJavascript(
+                        "renderActiveLocation(${liveLoc.latitude}, ${liveLoc.longitude}, $selectedRadiusKm, true);",
+                        null
+                    )
+                    Toast.makeText(context, "📍 Real GPS: ${liveLoc.name}", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Could not fetch GPS. Please check device location.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     val categories = listOf("All", "Food", "Medical", "Education", "Shelter", "Elderly")
     val presetRadii = listOf(1.0, 3.0, 5.0, 10.0)
@@ -207,28 +279,24 @@ fun NearbyMapScreen(
                     }
                 },
                 actions = {
-                    // Recenter GPS
-                    IconButton(onClick = {
-                        coroutineScope.launch {
-                            val gpsLoc = WorldwideLocationService.reverseGeocode(
-                                currentLocation.latitude,
-                                currentLocation.longitude,
-                                context
+                    // Recenter GPS Hardware
+                    IconButton(
+                        onClick = { fetchLiveGps() },
+                        enabled = !isFetchingLiveLocation
+                    ) {
+                        if (isFetchingLiveLocation) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = BrandPrimary
                             )
-                            onLocationChange(gpsLoc)
-                            manualPinLocation = null
-                            mapWebView?.evaluateJavascript("clearDroppedPin();", null)
-                            mapWebView?.evaluateJavascript(
-                                "renderActiveLocation(${gpsLoc.latitude}, ${gpsLoc.longitude}, $selectedRadiusKm, true);",
-                                null
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MyLocation,
+                                contentDescription = "Live GPS Location",
+                                tint = BrandPrimary
                             )
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.MyLocation,
-                            contentDescription = "My Location",
-                            tint = BrandPrimary
-                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
@@ -591,6 +659,9 @@ fun NearbyMapScreen(
                                                     selectedNeed = need
                                                     manualPinLocation = null
                                                 }
+                                            },
+                                            onRequestLiveLocationCallback = {
+                                                fetchLiveGps()
                                             }
                                         ),
                                         "AndroidBridge"
