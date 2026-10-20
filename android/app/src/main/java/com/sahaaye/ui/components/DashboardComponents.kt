@@ -1,5 +1,10 @@
 package com.sahaaye.ui.components
 
+import android.annotation.SuppressLint
+import android.view.ViewGroup
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -26,11 +31,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.sahaaye.R
 import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.QuickActionModel
 import com.sahaaye.data.model.StatCardModel
 import com.sahaaye.ui.theme.*
+import org.json.JSONArray
+import org.json.JSONObject
 
 // ─── 1. TOP HEADER BAR ────────────────────────────────────────────────────────
 @Composable
@@ -162,7 +170,7 @@ fun TopHeaderBar(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Search needs…",
+                            text = "Search location",
                             color = TextMuted,
                             fontSize = 12.sp,
                             maxLines = 1
@@ -342,37 +350,45 @@ fun StatsRow(
     }
 }
 
-// ─── 4. INTERACTIVE LIVE MAP CARD ─────────────────────────────────────────────
+// ─── 4. INTERACTIVE LIVE MAP CARD (REAL GOOGLE MAPS TILES) ────────────────────
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun LiveMapCard(
     needs: List<NeedItem>,
-    currentLocationName: String = "Indore Center",
+    currentLocationName: String = "Indore, MP",
+    currentLatitude: Double = 22.7196,
+    currentLongitude: Double = 75.8577,
     onNeedPinClick: (NeedItem) -> Unit,
     onFullMapClick: () -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
     val categories = listOf("All", "Food", "Medical", "Education", "Shelter")
 
-    // Pulsing animation for user location
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "scale"
-    )
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 0.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "alpha"
-    )
+    var miniWebView by remember { mutableStateOf<WebView?>(null) }
+    var isMiniMapReady by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentLatitude, currentLongitude, currentLocationName, isMiniMapReady) {
+        if (isMiniMapReady) {
+            val safeName = currentLocationName.replace("'", "\\'")
+            miniWebView?.evaluateJavascript(
+                "setCenterLocation($currentLatitude, $currentLongitude, '$safeName');",
+                null
+            )
+        }
+    }
+
+    LaunchedEffect(needs, isMiniMapReady) {
+        if (isMiniMapReady) {
+            val json = formatDashboardNeedsJson(needs)
+            miniWebView?.evaluateJavascript("updateNeeds($json);", null)
+        }
+    }
+
+    LaunchedEffect(selectedCategory, isMiniMapReady) {
+        if (isMiniMapReady) {
+            miniWebView?.evaluateJavascript("filterCategory('$selectedCategory');", null)
+        }
+    }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -430,123 +446,54 @@ fun LiveMapCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Interactive Map Canvas Area
+            // Real Google Maps Mini View
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(205.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFE8F5E9))
-                    .clickable { onFullMapClick() }
+                    .background(Color(0xFFE5E7EB))
             ) {
-                // Map background roads & grid
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val w = size.width
-                    val h = size.height
-
-                    // Grid / Roads
-                    drawLine(Color(0xFFDCEDC8), Offset(0f, h * 0.35f), Offset(w, h * 0.35f), strokeWidth = 8f)
-                    drawLine(Color(0xFFDCEDC8), Offset(0f, h * 0.65f), Offset(w, h * 0.65f), strokeWidth = 10f)
-                    drawLine(Color(0xFFDCEDC8), Offset(w * 0.35f, 0f), Offset(w * 0.35f, h), strokeWidth = 8f)
-                    drawLine(Color(0xFFDCEDC8), Offset(w * 0.70f, 0f), Offset(w * 0.70f, h), strokeWidth = 8f)
-
-                    // User location pulse circle
-                    drawCircle(
-                        color = BrandPrimary.copy(alpha = pulseAlpha),
-                        radius = 24.dp.toPx() * pulseScale,
-                        center = Offset(w * 0.5f, h * 0.5f)
-                    )
-                    drawCircle(
-                        color = Color.White,
-                        radius = 9.dp.toPx(),
-                        center = Offset(w * 0.5f, h * 0.5f)
-                    )
-                    drawCircle(
-                        color = BrandPrimary,
-                        radius = 6.dp.toPx(),
-                        center = Offset(w * 0.5f, h * 0.5f)
-                    )
-                }
-
-                // City / Area Center Label
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .offset(y = 20.dp)
-                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(currentLocationName, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                }
-
-                // Pins for needs around Indore
-                val filteredNeeds = if (selectedCategory == "All") needs else needs.filter { it.category == selectedCategory }
-                val pinOffsets = listOf(
-                    Offset(0.28f, 0.30f),
-                    Offset(0.68f, 0.28f),
-                    Offset(0.72f, 0.65f),
-                    Offset(0.25f, 0.70f),
-                    Offset(0.48f, 0.22f),
-                    Offset(0.55f, 0.75f)
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.allowFileAccess = true
+                            settings.allowContentAccess = true
+                            settings.cacheMode = WebSettings.LOAD_DEFAULT
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(v: WebView?, url: String?) {
+                                    super.onPageFinished(v, url)
+                                    val safeName = currentLocationName.replace("'", "\\'")
+                                    val json = formatDashboardNeedsJson(needs)
+                                    v?.evaluateJavascript(
+                                        "setCenterLocation($currentLatitude, $currentLongitude, '$safeName'); updateNeeds($json); filterCategory('$selectedCategory');",
+                                        null
+                                    )
+                                    isMiniMapReady = true
+                                }
+                            }
+                            loadUrl("file:///android_asset/map/mini_map.html")
+                            miniWebView = this
+                        }
+                    },
+                    update = { view ->
+                        miniWebView = view
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
 
-                filteredNeeds.take(pinOffsets.size).forEachIndexed { index, need ->
-                    val pos = pinOffsets[index]
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                start = (pos.x * 320).dp,
-                                top = (pos.y * 180).dp
-                            )
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = need.tagColor,
-                            shadowElevation = 4.dp,
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clickable { onNeedPinClick(need) }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(need.emoji, fontSize = 14.sp)
-                            }
-                        }
-                    }
-                }
-
-                // Map Zoom Controls & Recenter GPS
-                Column(
+                // Transparent click overlay so tapping anywhere smoothly opens full map
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.White,
-                        shadowElevation = 3.dp,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clickable { onFullMapClick() }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        }
-                    }
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.White,
-                        shadowElevation = 3.dp,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clickable { onFullMapClick() }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.MyLocation, contentDescription = "GPS", tint = BrandPrimary, modifier = Modifier.size(16.dp))
-                        }
-                    }
-                }
+                        .fillMaxSize()
+                        .clickable { onFullMapClick() }
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -564,6 +511,21 @@ fun LiveMapCard(
             }
         }
     }
+}
+
+private fun formatDashboardNeedsJson(needs: List<NeedItem>): String {
+    val array = JSONArray()
+    needs.forEach { item ->
+        val obj = JSONObject()
+        obj.put("id", item.id)
+        obj.put("title", item.title)
+        obj.put("category", item.category)
+        obj.put("emoji", item.emoji)
+        obj.put("latitude", item.latitude)
+        obj.put("longitude", item.longitude)
+        array.put(obj)
+    }
+    return JSONObject.quote(array.toString())
 }
 
 @Composable

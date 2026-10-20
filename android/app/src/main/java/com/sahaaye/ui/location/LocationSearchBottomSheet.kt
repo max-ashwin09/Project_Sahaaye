@@ -120,7 +120,7 @@ fun LocationSearchBottomSheet(
                 onValueChange = { searchQuery = it },
                 placeholder = {
                     Text(
-                        text = "Search city, colony, gali, landmark worldwide…",
+                        text = "Search location",
                         color = TextMuted,
                         fontSize = 13.sp
                     )

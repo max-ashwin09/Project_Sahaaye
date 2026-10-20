@@ -59,13 +59,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 36px;
-      height: 36px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       color: #FFFFFF;
-      font-size: 18px;
-      border: 2.5px solid #FFFFFF;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      font-size: 14px;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
       cursor: pointer;
       transition: transform 0.15s ease;
     }
@@ -79,34 +79,42 @@
     .pin-shelter { background: linear-gradient(135deg, #10B981, #047857); }
     .pin-elderly { background: linear-gradient(135deg, #8B5CF6, #6D28D9); }
 
-    /* Floating UI Controls on Map */
+    /* Floating UI Controls on Map - Simple, compact, authentic Google Maps style */
     .map-controls-group {
       position: absolute;
       top: 56px;
-      right: 14px;
+      right: 12px;
       z-index: 1000;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
     .map-btn {
-      width: 44px;
-      height: 44px;
+      width: 34px;
+      height: 34px;
       background: #FFFFFF;
-      border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.1);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.12);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 19px;
       cursor: pointer;
       user-select: none;
-      transition: background 0.15s, transform 0.1s;
+      transition: background 0.15s, transform 0.1s, border-color 0.15s;
+    }
+    .map-btn svg {
+      width: 17px;
+      height: 17px;
+      display: block;
     }
     .map-btn:active {
       background: #F1F5F9;
-      transform: scale(0.94);
+      transform: scale(0.92);
+    }
+    .map-btn.active-layer {
+      background: #EFF6FF;
+      border-color: #2563EB;
     }
 
     /* Custom Leaflet Tooltip */
@@ -129,12 +137,30 @@
 <body>
   <div id="map"></div>
 
-  <!-- Layer & Zoom Controls -->
+  <!-- Layer & Zoom Controls - Clean, authentic Google Maps icons -->
   <div class="map-controls-group">
-    <div class="map-btn" id="btnLayer" title="Toggle Satellite / Streets" onclick="toggleMapLayer()">🛰️</div>
-    <div class="map-btn" id="btnZoomIn" title="Zoom In" onclick="map.zoomIn()">➕</div>
-    <div class="map-btn" id="btnZoomOut" title="Zoom Out" onclick="map.zoomOut()">➖</div>
-    <div class="map-btn" id="btnRecenter" title="Recenter to active location" onclick="recenterMap()">🎯</div>
+    <div class="map-btn" id="btnLayer" title="Toggle Satellite / Streets" onclick="toggleMapLayer()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+    </div>
+    <div class="map-btn" id="btnZoomIn" title="Zoom In" onclick="map.zoomIn()">
+      <svg viewBox="0 0 24 24" fill="#374151">
+        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+      </svg>
+    </div>
+    <div class="map-btn" id="btnZoomOut" title="Zoom Out" onclick="map.zoomOut()">
+      <svg viewBox="0 0 24 24" fill="#374151">
+        <path d="M19 13H5v-2h14v2z"/>
+      </svg>
+    </div>
+    <div class="map-btn" id="btnRecenter" title="Recenter to active location" onclick="recenterMap()">
+      <svg viewBox="0 0 24 24" fill="#1A73E8">
+        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+      </svg>
+    </div>
   </div>
 
   <script src="leaflet.js"></script>
@@ -200,6 +226,7 @@
     }
 
     function toggleMapLayer() {
+      var btn = document.getElementById('btnLayer');
       if (currentLayerType === 'streets') {
         map.removeLayer(currentTileLayer);
         currentTileLayer = L.tileLayer(googleSatelliteUrl, {
@@ -207,7 +234,7 @@
           subdomains: ['0', '1', '2', '3']
         }).addTo(map);
         currentLayerType = 'satellite';
-        document.getElementById('btnLayer').innerText = '🗺️';
+        if (btn) btn.classList.add('active-layer');
       } else {
         map.removeLayer(currentTileLayer);
         currentTileLayer = L.tileLayer(googleStreetsUrl, {
@@ -215,7 +242,7 @@
           subdomains: ['0', '1', '2', '3']
         }).addTo(map);
         currentLayerType = 'streets';
-        document.getElementById('btnLayer').innerText = '🛰️';
+        if (btn) btn.classList.remove('active-layer');
       }
     }
 

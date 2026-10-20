@@ -144,6 +144,8 @@ fun DashboardScreen(
             LiveMapCard(
                 needs = needs,
                 currentLocationName = currentLocation.name,
+                currentLatitude = currentLocation.latitude,
+                currentLongitude = currentLocation.longitude,
                 onNeedPinClick = onNeedDetailClick,
                 onFullMapClick = onNavigateToNearby
             )

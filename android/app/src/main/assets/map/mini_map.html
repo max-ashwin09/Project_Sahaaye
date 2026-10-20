@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Sahaaye Live Mini Map</title>
+  <link rel="stylesheet" href="leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body, #map { width: 100%; height: 100%; overflow: hidden; background: #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; pointer-events: none; }
+
+    /* Pulsing user location marker */
+    .user-pulse-container {
+      position: relative;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .user-pulse-wave {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(37, 99, 235, 0.4);
+      animation: pulseAnim 1.6s ease-out infinite;
+    }
+    .user-pulse-dot {
+      position: relative;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #2563EB;
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+    }
+    @keyframes pulseAnim {
+      0% { transform: scale(0.5); opacity: 0.9; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    /* Category Marker Pills */
+    .category-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      color: #FFFFFF;
+      font-size: 14px;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    .pin-food { background: linear-gradient(135deg, #F59E0B, #D97706); }
+    .pin-medical { background: linear-gradient(135deg, #EF4444, #B91C1C); }
+    .pin-blood { background: linear-gradient(135deg, #DC2626, #991B1B); }
+    .pin-education { background: linear-gradient(135deg, #3B82F6, #1D4ED8); }
+    .pin-shelter { background: linear-gradient(135deg, #10B981, #047857); }
+    .pin-elderly { background: linear-gradient(135deg, #8B5CF6, #6D28D9); }
+
+    /* Center location label */
+    .loc-label {
+      position: absolute;
+      bottom: 8px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(4px);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #1E293B;
+      border: 1px solid rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .loc-label-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10B981;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="loc-label" id="locLabel">
+    <div class="loc-label-dot"></div>
+    <span id="locLabelText">Indore, MP</span>
+  </div>
+
+  <script src="leaflet.js"></script>
+  <script>
+    var map;
+    var centerLat = 22.7196;
+    var centerLng = 75.8577;
+    var centerMarker = null;
+    var markersLayer = L.layerGroup();
+    var allNeeds = [];
+    var activeCategory = 'All';
+
+    function initMap() {
+      // Clean non-interactive Google Maps tile view for smooth dashboard scrolling
+      map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        touchZoom: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        tap: false
+      }).setView([centerLat, centerLng], 14);
+
+      // Real Google Maps Roadmap tiles with full routes, street names, galis
+      L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        subdomains: ['0', '1', '2', '3'],
+        maxZoom: 20
+      }).addTo(map);
+
+      markersLayer.addTo(map);
+      renderCenterMarker();
+    }
+
+    function renderCenterMarker() {
+      if (centerMarker) map.removeLayer(centerMarker);
+
+      var userIcon = L.divIcon({
+        className: 'custom-user-icon',
+        html: '<div class="user-pulse-container"><div class="user-pulse-wave"></div><div class="user-pulse-dot"></div></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+
+      centerMarker = L.marker([centerLat, centerLng], { icon: userIcon }).addTo(map);
+    }
+
+    function setCenterLocation(lat, lng, name) {
+      centerLat = lat;
+      centerLng = lng;
+      if (map) {
+        map.setView([lat, lng], 14, { animate: true });
+        renderCenterMarker();
+      }
+      if (name) {
+        var el = document.getElementById('locLabelText');
+        if (el) el.innerText = name;
+      }
+    }
+
+    function updateNeeds(needsJson) {
+      try {
+        var items = typeof needsJson === 'string' ? JSON.parse(needsJson) : needsJson;
+        allNeeds = items || [];
+        renderCategoryMarkers();
+      } catch (e) {
+        console.error('Error parsing needs:', e);
+      }
+    }
+
+    function filterCategory(cat) {
+      activeCategory = cat || 'All';
+      renderCategoryMarkers();
+    }
+
+    function renderCategoryMarkers() {
+      markersLayer.clearLayers();
+
+      var filtered = allNeeds.filter(function(n) {
+        if (activeCategory === 'All') return true;
+        return (n.category || '').toLowerCase() === activeCategory.toLowerCase();
+      });
+
+      filtered.forEach(function(item) {
+        if (!item.latitude || !item.longitude) return;
+        var catClass = 'pin-' + (item.category || 'food').toLowerCase();
+        var iconHtml = '<div class="category-pin ' + catClass + '">' + (item.emoji || '📍') + '</div>';
+
+        var pinIcon = L.divIcon({
+          className: 'custom-cat-icon',
+          html: iconHtml,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+
+        L.marker([item.latitude, item.longitude], { icon: pinIcon }).addTo(markersLayer);
+      });
+    }
+
+    window.onload = function() {
+      initMap();
+    };
+  </script>
+</body>
+</html>

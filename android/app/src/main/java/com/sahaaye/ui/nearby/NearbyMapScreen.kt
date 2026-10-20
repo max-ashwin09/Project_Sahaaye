@@ -8,6 +8,8 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
@@ -88,6 +90,15 @@ fun NearbyMapScreen(
     // Custom Radius Dialog State
     var showCustomRadiusDialog by remember { mutableStateOf(false) }
     var customRadiusInput by remember { mutableStateOf("") }
+    var showPinchHint by remember { mutableStateOf(false) }
+
+    // Auto-dismiss pinch hint after 3 seconds
+    LaunchedEffect(showPinchHint) {
+        if (showPinchHint) {
+            delay(3000)
+            showPinchHint = false
+        }
+    }
 
     // Manual map pin state
     var isManualPickerActive by remember { mutableStateOf(initialManualMode) }
@@ -242,7 +253,7 @@ fun NearbyMapScreen(
                             onValueChange = { mapSearchQuery = it },
                             placeholder = {
                                 Text(
-                                    text = "Search gali, mohalla, city, landmark worldwide…",
+                                    text = "Search location",
                                     fontSize = 13.sp,
                                     color = TextMuted
                                 )
@@ -426,6 +437,7 @@ fun NearbyMapScreen(
                                             ),
                                             modifier = Modifier.clickable {
                                                 selectedRadiusKm = radius
+                                                showPinchHint = true
                                                 mapWebView?.evaluateJavascript(
                                                     "renderActiveLocation(${currentLocation.latitude}, ${currentLocation.longitude}, $radius, true);",
                                                     null
@@ -591,33 +603,39 @@ fun NearbyMapScreen(
                             modifier = Modifier.fillMaxSize()
                         )
 
-                        // Top Instruction Pill for Map
-                        Surface(
-                            color = Color.White.copy(alpha = 0.94f),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, BorderSubtle),
-                            shadowElevation = 4.dp,
+                        // Top Instruction Pill for Map (Only visible for 2-4 seconds when radius is customized)
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showPinchHint,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .padding(top = 10.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Surface(
+                                color = Color.White.copy(alpha = 0.94f),
+                                shape = RoundedCornerShape(20.dp),
+                                border = BorderStroke(1.dp, BorderSubtle),
+                                shadowElevation = 4.dp
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.TouchApp,
-                                    contentDescription = null,
-                                    tint = BrandPrimary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Pinch to zoom in/out • Tap anywhere to drop pin",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TextPrimary
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.TouchApp,
+                                        contentDescription = null,
+                                        tint = BrandPrimary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Pinch to zoom in/out • Tap anywhere to drop pin",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextPrimary
+                                    )
+                                }
                             }
                         }
 
@@ -805,6 +823,7 @@ fun NearbyMapScreen(
                                 val entered = customRadiusInput.trim().toDoubleOrNull()
                                 if (entered != null && entered > 0.0) {
                                     selectedRadiusKm = entered
+                                    showPinchHint = true
                                     mapWebView?.evaluateJavascript(
                                         "renderActiveLocation(${currentLocation.latitude}, ${currentLocation.longitude}, $entered, true);",
                                         null
