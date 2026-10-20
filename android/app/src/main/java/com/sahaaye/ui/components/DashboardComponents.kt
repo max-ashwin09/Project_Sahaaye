@@ -358,6 +358,7 @@ fun LiveMapCard(
     currentLocationName: String = "Indore, MP",
     currentLatitude: Double = 22.7196,
     currentLongitude: Double = 75.8577,
+    radiusKm: Double = 5.0,
     onNeedPinClick: (NeedItem) -> Unit,
     onFullMapClick: () -> Unit
 ) {
@@ -367,11 +368,11 @@ fun LiveMapCard(
     var miniWebView by remember { mutableStateOf<WebView?>(null) }
     var isMiniMapReady by remember { mutableStateOf(false) }
 
-    LaunchedEffect(currentLatitude, currentLongitude, currentLocationName, isMiniMapReady) {
+    LaunchedEffect(currentLatitude, currentLongitude, currentLocationName, radiusKm, isMiniMapReady) {
         if (isMiniMapReady) {
             val safeName = currentLocationName.replace("'", "\\'")
             miniWebView?.evaluateJavascript(
-                "setCenterLocation($currentLatitude, $currentLongitude, '$safeName');",
+                "setCenterLocation($currentLatitude, $currentLongitude, '$safeName', $radiusKm);",
                 null
             )
         }
@@ -413,6 +414,13 @@ fun LiveMapCard(
                             .size(8.dp)
                             .clip(CircleShape)
                             .background(StatCompleted)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "• ${radiusKm.toInt()} km radius",
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        fontWeight = FontWeight.Medium
                     )
                 }
 
@@ -472,7 +480,7 @@ fun LiveMapCard(
                                     val safeName = currentLocationName.replace("'", "\\'")
                                     val json = formatDashboardNeedsJson(needs)
                                     v?.evaluateJavascript(
-                                        "setCenterLocation($currentLatitude, $currentLongitude, '$safeName'); updateNeeds($json); filterCategory('$selectedCategory');",
+                                        "setCenterLocation($currentLatitude, $currentLongitude, '$safeName', $radiusKm); updateNeeds($json); filterCategory('$selectedCategory');",
                                         null
                                     )
                                     isMiniMapReady = true

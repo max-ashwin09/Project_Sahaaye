@@ -60,30 +60,39 @@
     .pin-shelter { background: linear-gradient(135deg, #10B981, #047857); }
     .pin-elderly { background: linear-gradient(135deg, #8B5CF6, #6D28D9); }
 
-    /* Center location label */
+    /* Center location & radius badge */
     .loc-label {
       position: absolute;
       bottom: 8px;
       left: 10px;
       z-index: 1000;
-      background: rgba(255, 255, 255, 0.92);
+      background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(4px);
-      padding: 3px 8px;
-      border-radius: 6px;
+      padding: 4px 10px;
+      border-radius: 8px;
       font-size: 11px;
       font-weight: 700;
       color: #1E293B;
-      border: 1px solid rgba(0,0,0,0.1);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.12);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
     }
     .loc-label-dot {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: #10B981;
+    }
+    .radius-tag {
+      background: #EFF6FF;
+      color: #2563EB;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid #BFDBFE;
     }
   </style>
 </head>
@@ -92,6 +101,7 @@
   <div class="loc-label" id="locLabel">
     <div class="loc-label-dot"></div>
     <span id="locLabelText">Indore, MP</span>
+    <span class="radius-tag" id="radiusTagText">5 km radius</span>
   </div>
 
   <script src="leaflet.js"></script>
@@ -99,7 +109,9 @@
     var map;
     var centerLat = 22.7196;
     var centerLng = 75.8577;
+    var currentRadiusKm = 5;
     var centerMarker = null;
+    var radiusCircle = null;
     var markersLayer = L.layerGroup();
     var allNeeds = [];
     var activeCategory = 'All';
@@ -115,7 +127,7 @@
         doubleClickZoom: false,
         boxZoom: false,
         tap: false
-      }).setView([centerLat, centerLng], 14);
+      }).setView([centerLat, centerLng], 12);
 
       // Real Google Maps Roadmap tiles with full routes, street names, galis
       L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
@@ -125,6 +137,8 @@
 
       markersLayer.addTo(map);
       renderCenterMarker();
+      renderRadiusCircle();
+      fitRadiusView();
     }
 
     function renderCenterMarker() {
@@ -140,16 +154,50 @@
       centerMarker = L.marker([centerLat, centerLng], { icon: userIcon }).addTo(map);
     }
 
-    function setCenterLocation(lat, lng, name) {
+    function renderRadiusCircle() {
+      if (radiusCircle) {
+        map.removeLayer(radiusCircle);
+        radiusCircle = null;
+      }
+
+      // Radius circle boundary on Home page Live Map
+      radiusCircle = L.circle([centerLat, centerLng], {
+        radius: currentRadiusKm * 1000,
+        color: '#2563EB',
+        fillColor: '#3B82F6',
+        fillOpacity: 0.12,
+        weight: 2
+      }).addTo(map);
+    }
+
+    function fitRadiusView() {
+      if (map && radiusCircle) {
+        map.fitBounds(radiusCircle.getBounds().pad(0.08), { animate: false });
+      }
+    }
+
+    function setCenterLocation(lat, lng, name, radiusKm) {
       centerLat = lat;
       centerLng = lng;
+      if (radiusKm && !isNaN(radiusKm)) {
+        currentRadiusKm = parseFloat(radiusKm);
+      }
       if (map) {
-        map.setView([lat, lng], 14, { animate: true });
         renderCenterMarker();
+        renderRadiusCircle();
+        if (radiusCircle) {
+          map.fitBounds(radiusCircle.getBounds().pad(0.08), { animate: true });
+        } else {
+          map.setView([lat, lng], 12);
+        }
       }
       if (name) {
         var el = document.getElementById('locLabelText');
         if (el) el.innerText = name;
+      }
+      var rEl = document.getElementById('radiusTagText');
+      if (rEl) {
+        rEl.innerText = currentRadiusKm + ' km radius';
       }
     }
 
