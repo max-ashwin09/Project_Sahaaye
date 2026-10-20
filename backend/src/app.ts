@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 
 import { moderationRouter } from './modules/moderation/router';
 import { needsRouter } from './modules/needs';
+import { appDownloadRouter } from './modules/app/router';
 
 export const app = express();
 
@@ -37,6 +38,9 @@ app.use('/api/v1/moderation', moderationRouter);
 
 // Community Needs & Geo-Reporting Router
 app.use('/api/v1/needs', needsRouter);
+
+// Android App Distribution & APK Download Router
+app.use('/api/v1/app', appDownloadRouter);
 
 app.use(errorHandler);
 

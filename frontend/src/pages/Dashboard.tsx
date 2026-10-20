@@ -12,6 +12,8 @@ import {
   User,
   Settings,
   LogIn,
+  Smartphone,
+  ArrowDownToLine,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -353,8 +355,31 @@ const Dashboard: React.FC = () => {
       return null;
     }
   });
+  const [apkInfo, setApkInfo] = useState<{
+    fileSizeMb: string;
+    version: string;
+    lastUpdated: string;
+    downloadUrl: string;
+  } | null>(null);
+
   const addRipple = useRipple();
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch('/api/v1/app/info')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.success) {
+          setApkInfo({
+            fileSizeMb: data.fileSizeMb || '25.0 MB',
+            version: data.version || '1.0.0',
+            lastUpdated: data.lastUpdated,
+            downloadUrl: data.downloadUrl || '/api/v1/app/download',
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchLiveNeeds = useCallback(async () => {
     try {
@@ -456,6 +481,26 @@ const Dashboard: React.FC = () => {
         </nav>
 
         <div className="sidebar-bottom">
+          <a
+            href="/api/v1/app/download"
+            download="Sahaaye-Latest.apk"
+            className="sidebar-app-btn ripple-container"
+            onClick={(e) => {
+              addRipple(e);
+              showToast('📥 Downloading SAHAAYE Android APK…');
+            }}
+            title="Download SAHAAYE Android App"
+          >
+            <div className="sidebar-app-btn-icon">
+              <Smartphone size={18} />
+            </div>
+            <div className="sidebar-app-btn-text">
+              <span className="sidebar-app-btn-title">Android App</span>
+              <span className="sidebar-app-btn-sub">v{apkInfo?.version || '1.0'} • {apkInfo?.fileSizeMb || '25 MB'}</span>
+            </div>
+            <ArrowDownToLine size={16} className="sidebar-app-btn-dl" />
+          </a>
+
           <div
             className="sidebar-cta ripple-container"
             onClick={(e) => { addRipple(e); showToast('Together for a Kinder Indore! 🌟'); }}
@@ -492,6 +537,21 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="topbar-right">
+            <a
+              href="/api/v1/app/download"
+              download="Sahaaye-Latest.apk"
+              className="download-topbar-btn ripple-container"
+              onClick={(e) => {
+                addRipple(e);
+                showToast('📥 Downloading SAHAAYE Android APK…');
+              }}
+              title="Download Android App APK (Latest Build)"
+            >
+              <Smartphone size={15} />
+              <span>Get Android App</span>
+              <span className="download-topbar-badge">{apkInfo?.fileSizeMb || '25 MB'}</span>
+            </a>
+
             <button
               className="location-btn ripple-container"
               onClick={(e) => { addRipple(e); showToast('📍 Location: Indore, MP'); }}
@@ -607,6 +667,53 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="hero-quote">
               <p>Helping people builds stronger communities.</p>
+            </div>
+          </div>
+
+          {/* ── ANDROID APP DOWNLOAD CARD ─────────────────────────────────── */}
+          <div className="app-download-card">
+            <div className="app-card-left">
+              <div className="app-avatar-badge">
+                <Smartphone size={28} className="app-phone-icon" />
+                <span className="app-pulse-dot" />
+              </div>
+              <div className="app-card-details">
+                <div className="app-card-title-row">
+                  <h3 className="app-card-title">SAHAAYE for Android</h3>
+                  <span className="app-version-chip">v{apkInfo?.version || '1.0'} Official</span>
+                  <span className="app-sync-chip">🟢 Auto-Synced APK</span>
+                </div>
+                <p className="app-card-desc">
+                  Capture geo-verified photo & video proofs with automatic coordinate watermark, report local needs directly from the ground, and stay connected with real-time aid alerts.
+                </p>
+                <div className="app-highlights">
+                  <span className="highlight-pill">📸 Geo-Camera & Flash</span>
+                  <span className="highlight-pill">🎥 HD Video Proofs</span>
+                  <span className="highlight-pill">📍 Real-Time GPS Watermark</span>
+                  <span className="highlight-pill">⚡ Always Latest Build</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="app-card-right">
+              <a
+                href="/api/v1/app/download"
+                download="Sahaaye-Latest.apk"
+                className="app-download-action-btn ripple-container"
+                onClick={(e) => {
+                  addRipple(e);
+                  showToast('📥 Downloading SAHAAYE Android APK (Direct Install)…');
+                }}
+              >
+                <ArrowDownToLine size={20} />
+                <div className="btn-label-group">
+                  <span className="btn-title">Download APK</span>
+                  <span className="btn-meta">{apkInfo?.fileSizeMb || '25 MB'} • Direct Install</span>
+                </div>
+              </a>
+              <div className="app-install-note">
+                ✓ Tap Download &gt; Open file &gt; Install on phone
+              </div>
             </div>
           </div>
 
