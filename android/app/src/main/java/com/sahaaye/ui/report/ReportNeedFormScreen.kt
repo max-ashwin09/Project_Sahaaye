@@ -121,10 +121,32 @@ fun ReportNeedFormScreen(
                     ) {
                         AsyncImage(
                             model = capturedPhoto,
-                            contentDescription = "Geo Stamped Photo",
+                            contentDescription = "Geo Stamped Media",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
+
+                        if (capturedPhoto.name.endsWith(".mp4")) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Surface(
+                                    color = Color.Black.copy(alpha = 0.65f),
+                                    shape = CircleShape,
+                                    modifier = Modifier.size(52.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Recorded Video",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         // Verified Badge overlay
                         Surface(
@@ -146,7 +168,7 @@ fun ReportNeedFormScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Geo-Verified",
+                                    text = if (capturedPhoto.name.endsWith(".mp4")) "Geo-Verified Video" else "Geo-Verified Photo",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
