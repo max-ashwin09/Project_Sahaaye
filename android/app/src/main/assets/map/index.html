@@ -363,12 +363,15 @@
 
         var marker = L.marker([item.latitude, item.longitude], { icon: icon });
 
-        // Tooltip popup
+        // Tooltip popup showing Title and Need category
         var popupHtml = '<div class="popup-title">' + (item.title || 'Community Need') + '</div>' +
-          '<div class="popup-meta"><span>📍 ' + (item.location || '') + '</span> • <span>' + (item.distanceKm ? item.distanceKm + ' km away' : '') + '</span></div>' +
-          '<div style="margin-top: 4px;"><span class="popup-badge" style="background:#EFF6FF;color:#1D4ED8;">' + (item.category || '') + '</span></div>';
+          '<div style="margin-top: 2px; margin-bottom: 4px; font-weight: 700; color: #2563EB; font-size: 11px;">Need: ' + (item.category || '') + '</div>' +
+          '<div class="popup-meta"><span>📍 ' + (item.location || '') + '</span> • <span>' + (item.distanceKm ? item.distanceKm + ' km away' : '') + '</span></div>';
 
         marker.bindPopup(popupHtml);
+
+        var tooltipHtml = '<b>' + (item.title || 'Need') + '</b> (' + (item.category || '') + ')';
+        marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -18] });
 
         marker.on('click', function() {
           if (window.AndroidBridge && window.AndroidBridge.onNeedMarkerClicked) {

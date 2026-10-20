@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
 
                     // Prompt user for permissions immediately on launch (fetch location silently with NO popup)
                     LaunchedEffect(Unit) {
+                        NeedsRepository.initDatabase(context)
                         if (!LiveLocationService.arePermissionsGranted(context)) {
                             permissionLauncher.launch(LiveLocationService.getRequiredPermissions())
                         } else if (LiveLocationService.hasLocationPermission(context)) {
@@ -170,8 +171,8 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = "dashboard"
                                     },
                                     onNeedPublished = { publishedNeed ->
-                                        // 1. Add to community needs repository
-                                        NeedsRepository.addReportedNeed(publishedNeed)
+                                        // 1. Add to SQLite database & in-memory community repository
+                                        NeedsRepository.addReportedNeed(publishedNeed, this@MainActivity)
 
                                         // 2. Set active location to the newly reported need so map & dashboard center on it
                                         val reportedLoc = SahaayeLocation(

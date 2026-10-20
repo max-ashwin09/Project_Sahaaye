@@ -143,12 +143,22 @@ object GeoCameraHelper {
             val dateStr = dateFormat.format(Date())
             canvas.drawText("Timestamp: $dateStr  •  GPS Locked", paddingLeft, line4Y, timePaint)
 
-            // Save to output file
-            val outputDir = File(context.cacheDir, "geo_reports").apply { mkdirs() }
+            // Save directly to raw_data/non_blurry directory as requested
+            val outputDir = getRawDataNonBlurryDir(context)
             val outputFile = File(outputDir, "need_geo_${System.currentTimeMillis()}.jpg")
             FileOutputStream(outputFile).use { out ->
                 stampedBitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
             }
+
+            // Also copy to public Pictures folder if possible
+            try {
+                val publicDir = File(
+                    android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES),
+                    "Sahaaye/raw_data/non_blurry"
+                ).apply { mkdirs() }
+                val publicFile = File(publicDir, outputFile.name)
+                outputFile.copyTo(publicFile, overwrite = true)
+            } catch (_: Exception) {}
 
             // Cleanup
             rotatedBitmap.recycle()
@@ -159,5 +169,26 @@ object GeoCameraHelper {
             Log.e(TAG, "Error stamping geo details on photo", e)
             rawImageFile
         }
+    }
+
+    /**
+     * Get or create the raw_data/non_blurry directory
+     */
+    fun getRawDataNonBlurryDir(context: Context): File {
+        val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val nonBlurry = File(baseDir, "raw_data/non_blurry").apply { mkdirs() }
+
+        // Also ensure blurry folder is created alongside it
+        File(baseDir, "raw_data/blurry").mkdirs()
+
+        return nonBlurry
+    }
+
+    /**
+     * Get or create the raw_data/blurry directory
+     */
+    fun getRawDataBlurryDir(context: Context): File {
+        val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
+        return File(baseDir, "raw_data/blurry").apply { mkdirs() }
     }
 }

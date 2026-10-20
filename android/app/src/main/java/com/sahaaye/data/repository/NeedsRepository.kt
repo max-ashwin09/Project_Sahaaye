@@ -1,5 +1,7 @@
 package com.sahaaye.data.repository
 
+import android.content.Context
+import com.sahaaye.data.db.NeedsDatabaseHelper
 import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.QuickActionModel
 import com.sahaaye.data.model.StatCardModel
@@ -8,6 +10,8 @@ import androidx.compose.ui.graphics.Color
 import kotlin.math.*
 
 object NeedsRepository {
+
+    private var dbHelper: NeedsDatabaseHelper? = null
 
     // Default reference location: Indore, MP (22.7196, 75.8577)
     const val INDORE_LAT = 22.7196
@@ -174,11 +178,25 @@ object NeedsRepository {
         )
     )
 
-    // List of user-submitted needs created via the Geo-Camera Report flow
+    // List of user-submitted needs created via the Geo-Camera Report flow (persisted in SQLite)
     val userReportedNeeds = mutableListOf<NeedItem>()
 
-    fun addReportedNeed(need: NeedItem) {
+    fun initDatabase(context: Context) {
+        if (dbHelper == null) {
+            dbHelper = NeedsDatabaseHelper(context.applicationContext)
+            val savedNeeds = dbHelper?.getAllReportedNeeds() ?: emptyList()
+            userReportedNeeds.clear()
+            userReportedNeeds.addAll(savedNeeds)
+        }
+    }
+
+    fun addReportedNeed(need: NeedItem, context: Context? = null) {
+        if (context != null) {
+            initDatabase(context)
+        }
+        userReportedNeeds.removeAll { it.id == need.id }
         userReportedNeeds.add(0, need)
+        dbHelper?.insertReportedNeed(need)
     }
 
     // Calculate distance using Haversine formula
