@@ -32,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
 import com.sahaaye.data.model.SahaayeLocation
 import com.sahaaye.data.service.LiveLocationService
 import com.sahaaye.ui.theme.*
@@ -62,13 +64,16 @@ enum class CameraCaptureMode {
 
 @Composable
 fun GeoCameraView(
-    onPhotoCaptured: (file: File, location: SahaayeLocation) -> Unit,
+    onMediaCaptured: (files: List<File>, location: SahaayeLocation) -> Unit,
     onCloseClick: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
+
+    // Captured Media Gallery List (Stacked in Bottom-Left corner)
+    val capturedMediaList = remember { mutableStateListOf<File>() }
 
     // Mode: PHOTO vs VIDEO
     var captureMode by remember { mutableStateOf(CameraCaptureMode.PHOTO) }
@@ -294,7 +299,9 @@ fun GeoCameraView(
                             videoFile.copyTo(pubFile, overwrite = true)
                         } catch (_: Exception) {}
 
-                        onPhotoCaptured(videoFile, activeLocation ?: SahaayeLocation.DEFAULT)
+                        // Add video to captured stack in bottom-left corner!
+                        capturedMediaList.add(videoFile)
+                        Toast.makeText(context, "Video added (${capturedMediaList.size})", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "Video recording failed: ${event.error}", Toast.LENGTH_SHORT).show()
                     }
@@ -323,7 +330,7 @@ fun GeoCameraView(
                     previewViewRef = this
                 }
             },
-            update = { /* Stable preview view - do not tear down lifecycle here */ },
+            update = { /* Stable preview view */ },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -616,6 +623,49 @@ fun GeoCameraView(
                 .padding(bottom = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Floating Next Pill (when items captured)
+            AnimatedVisibility(
+                visible = capturedMediaList.isNotEmpty(),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Surface(
+                    color = Color(0xFF2563EB),
+                    shape = RoundedCornerShape(20.dp),
+                    shadowElevation = 6.dp,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .padding(bottom = 8.dp)
+                        .clickable {
+                            if (activeLocation != null) {
+                                onMediaCaptured(capturedMediaList.toList(), activeLocation!!)
+                            } else {
+                                Toast.makeText(context, "GPS location required", Toast.LENGTH_SHORT).show()
+                                refreshLocation()
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${capturedMediaList.size} Proof(s) Captured",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Next →",
+                            color = Color(0xFFFBBF24),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+
             // ── Camera Mode Switcher (PHOTO | VIDEO) ────────────────────────
             Row(
                 modifier = Modifier
@@ -773,21 +823,77 @@ fun GeoCameraView(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ── Shutter Button Row ──────────────────────────────────────────
+            // ── Shutter Button Row (Left Thumbnail Stack | Center Shutter | Right Next/Done) ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Spacer for balanced layout
-                Spacer(modifier = Modifier.size(48.dp))
+                // ── LEFT CORNER: Captured Media Stack / Thumbnail ───────────
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .border(
+                            width = 2.dp,
+                            color = if (capturedMediaList.isNotEmpty()) Color(0xFFFBBF24) else Color.White.copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(14.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (capturedMediaList.isNotEmpty()) {
+                        val latest = capturedMediaList.last()
+                        AsyncImage(
+                            model = latest,
+                            contentDescription = "Latest Captured",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        if (latest.name.endsWith(".mp4")) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Video",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // Badge count in top-right of thumbnail
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 2.dp, y = (-2).dp)
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF2563EB))
+                                .border(1.dp, Color.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${capturedMediaList.size}",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.PhotoLibrary,
+                            contentDescription = "Gallery Stack",
+                            tint = Color.White.copy(alpha = 0.35f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
 
                 val isGpsReady = activeLocation != null
 
+                // ── CENTER: Shutter Button (PHOTO / VIDEO) ──────────────────
                 if (captureMode == CameraCaptureMode.PHOTO) {
-                    // ── PHOTO SHUTTER BUTTON ────────────────────────────────
                     Surface(
                         shape = CircleShape,
                         color = if (isGpsReady) Color.White else Color(0xFF475569),
@@ -829,7 +935,13 @@ fun GeoCameraView(
                                                     locationName = activeLocation!!.name
                                                 )
                                                 isCapturing = false
-                                                onPhotoCaptured(stampedFile, activeLocation!!)
+                                                // Add to stack in bottom-left corner!
+                                                capturedMediaList.add(stampedFile)
+                                                Toast.makeText(
+                                                    context,
+                                                    "Photo added (${capturedMediaList.size}) • Take more or tap Next",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
                                         }
 
@@ -869,7 +981,7 @@ fun GeoCameraView(
                         }
                     }
                 } else {
-                    // ── VIDEO RECORDING BUTTON ──────────────────────────────
+                    // Video recording shutter
                     Surface(
                         shape = CircleShape,
                         color = Color.Transparent,
@@ -889,7 +1001,6 @@ fun GeoCameraView(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             if (isRecording) {
-                                // Red square for STOP recording
                                 Box(
                                     modifier = Modifier
                                         .size(30.dp)
@@ -897,7 +1008,6 @@ fun GeoCameraView(
                                         .background(Color(0xFFEF4444))
                                 )
                             } else {
-                                // Red circle for START recording
                                 Box(
                                     modifier = Modifier
                                         .size(56.dp)
@@ -909,19 +1019,48 @@ fun GeoCameraView(
                     }
                 }
 
-                // Right GPS Status Indicator
-                Surface(
-                    color = Color.Black.copy(alpha = 0.55f),
-                    shape = CircleShape,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (isGpsReady) Icons.Default.GpsFixed else Icons.Default.GpsNotFixed,
-                            contentDescription = "GPS Status",
-                            tint = if (isGpsReady) Color(0xFF10B981) else Color(0xFFF59E0B),
-                            modifier = Modifier.size(24.dp)
-                        )
+                // ── RIGHT CORNER: Next / Done Button (or GPS icon if empty) ──
+                if (capturedMediaList.isNotEmpty()) {
+                    Surface(
+                        color = Color(0xFF2563EB),
+                        shape = CircleShape,
+                        border = BorderStroke(2.dp, Color.White),
+                        shadowElevation = 6.dp,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clickable {
+                                if (activeLocation == null) {
+                                    Toast.makeText(context, "GPS Location required", Toast.LENGTH_SHORT).show()
+                                    refreshLocation()
+                                    return@clickable
+                                }
+                                onMediaCaptured(capturedMediaList.toList(), activeLocation!!)
+                            }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = "Next",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // Right GPS Status Indicator
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.55f),
+                        shape = CircleShape,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isGpsReady) Icons.Default.GpsFixed else Icons.Default.GpsNotFixed,
+                                contentDescription = "GPS Status",
+                                tint = if (isGpsReady) Color(0xFF10B981) else Color(0xFFF59E0B),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
