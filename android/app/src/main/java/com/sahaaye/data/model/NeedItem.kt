@@ -15,7 +15,10 @@ data class NeedItem(
     val distanceKm: Double,
     val tagColor: Color,
     val tagBg: Color,
-    val description: String = ""
+    val description: String = "",
+    val imagePath: String? = null,
+    val isUserReported: Boolean = false,
+    val urgency: String = "Normal"
 )
 
 data class StatCardModel(

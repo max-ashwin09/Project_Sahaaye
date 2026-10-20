@@ -174,6 +174,13 @@ object NeedsRepository {
         )
     )
 
+    // List of user-submitted needs created via the Geo-Camera Report flow
+    val userReportedNeeds = mutableListOf<NeedItem>()
+
+    fun addReportedNeed(need: NeedItem) {
+        userReportedNeeds.add(0, need)
+    }
+
     // Calculate distance using Haversine formula
     fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6371.0 // Earth radius in km
@@ -312,9 +319,16 @@ object NeedsRepository {
             )
         )
 
-        return templateNeeds.map { item ->
+        val mappedReportedNeeds = userReportedNeeds.map { item ->
             val dist = calculateDistance(centerLat, centerLng, item.latitude, item.longitude)
             item.copy(distanceKm = dist)
-        }.sortedBy { it.distanceKm }
+        }
+
+        val mappedTemplates = templateNeeds.map { item ->
+            val dist = calculateDistance(centerLat, centerLng, item.latitude, item.longitude)
+            item.copy(distanceKm = dist)
+        }
+
+        return (mappedReportedNeeds + mappedTemplates).sortedBy { it.distanceKm }
     }
 }

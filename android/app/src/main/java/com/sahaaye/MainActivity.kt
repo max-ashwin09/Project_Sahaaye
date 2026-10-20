@@ -16,9 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.SahaayeLocation
+import com.sahaaye.data.repository.NeedsRepository
 import com.sahaaye.data.service.LiveLocationService
 import com.sahaaye.ui.dashboard.DashboardScreen
 import com.sahaaye.ui.nearby.NearbyMapScreen
+import com.sahaaye.ui.report.ReportNeedScreen
 import com.sahaaye.ui.splash.AnimatedSplashScreen
 import com.sahaaye.ui.theme.AppBackground
 import com.sahaaye.ui.theme.SahaayeTheme
@@ -130,7 +132,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     isGpsLoading = isGpsLoading,
                                     onNavigateToReport = {
-                                        Toast.makeText(this@MainActivity, "➕ Opening Report Need Form…", Toast.LENGTH_SHORT).show()
+                                        currentScreen = "report"
                                     },
                                     onNavigateToActivities = {
                                         Toast.makeText(this@MainActivity, "📋 Opening My Activities…", Toast.LENGTH_SHORT).show()
@@ -158,6 +160,34 @@ class MainActivity : ComponentActivity() {
                                             this@MainActivity,
                                             "🤝 Connecting you to ${need.title} in ${need.location}",
                                             Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                )
+                            }
+                            "report" -> {
+                                ReportNeedScreen(
+                                    onBackClick = {
+                                        currentScreen = "dashboard"
+                                    },
+                                    onNeedPublished = { publishedNeed ->
+                                        // 1. Add to community needs repository
+                                        NeedsRepository.addReportedNeed(publishedNeed)
+
+                                        // 2. Set active location to the newly reported need so map & dashboard center on it
+                                        val reportedLoc = SahaayeLocation(
+                                            name = publishedNeed.location,
+                                            latitude = publishedNeed.latitude,
+                                            longitude = publishedNeed.longitude,
+                                            placeType = "Reported Need"
+                                        )
+                                        currentLocation = reportedLoc
+
+                                        // 3. Immediately navigate to Nearby Explorer where the new need is visible at the captured location!
+                                        currentScreen = "nearby"
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "Need published & live on map!",
+                                            Toast.LENGTH_SHORT
                                         ).show()
                                     }
                                 )

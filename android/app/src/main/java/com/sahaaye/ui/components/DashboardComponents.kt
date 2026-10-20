@@ -37,6 +37,9 @@ import com.sahaaye.data.model.NeedItem
 import com.sahaaye.data.model.QuickActionModel
 import com.sahaaye.data.model.StatCardModel
 import com.sahaaye.ui.theme.*
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -604,14 +607,30 @@ fun NeedsNearYouSection(
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(need.tagBg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = need.emoji, fontSize = 20.sp)
+                            if (!need.imagePath.isNullOrEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.Black)
+                                ) {
+                                    AsyncImage(
+                                        model = File(need.imagePath),
+                                        contentDescription = "Need photo",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(need.tagBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = need.emoji, fontSize = 20.sp)
+                                }
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {

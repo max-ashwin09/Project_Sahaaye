@@ -1,10 +1,12 @@
 package com.sahaaye.data.model
 
+import java.util.UUID
+
 data class SahaayeLocation(
-    val id: String,
+    val id: String = UUID.randomUUID().toString(),
     val name: String,             // Short title (e.g., "Indore, MP" or "Vijay Nagar")
-    val fullAddress: String,      // Detailed gali, mohalla, landmark address
-    val locality: String,         // Sub-area / colony
+    val fullAddress: String = "",      // Detailed gali, mohalla, landmark address
+    val locality: String = "",         // Sub-area / colony
     val latitude: Double,
     val longitude: Double,
     val placeType: String = "Locality" // "Landmark", "Market", "Temple", "Hospital", "Colony"

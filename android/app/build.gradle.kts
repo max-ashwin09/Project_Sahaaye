@@ -79,6 +79,13 @@ dependencies {
     // Location Services (for attaching GPS and calculating nearby needs)
     implementation("com.google.android.gms:play-services-location:21.1.0")
 
+    // CameraX (for full-featured Geo-Camera)
+    val cameraxVersion = "1.3.2"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
     // Image loading (Coil)
     implementation("io.coil-kt:coil-compose:2.6.0")
 
