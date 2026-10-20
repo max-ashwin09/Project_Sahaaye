@@ -1,11 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReportNeed from './ReportNeed';
+import {
+  LayoutDashboard,
+  MapPin,
+  Search,
+  PlusCircle,
+  ClipboardList,
+  MessageSquare,
+  Bell,
+  Bookmark,
+  User,
+  Settings,
+  LogIn,
+} from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface NavItem {
   id: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   badge?: number;
 }
 
@@ -59,16 +72,16 @@ interface DonutSegment {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
-  { id: 'nearby', label: 'Nearby Needs', icon: '📍' },
-  { id: 'search', label: 'Search Needs', icon: '🔍' },
-  { id: 'report', label: 'Report Need', icon: '➕' },
-  { id: 'activities', label: 'My Activities', icon: '📋' },
-  { id: 'messages', label: 'Messages', icon: '💬', badge: 3 },
-  { id: 'notifications', label: 'Notifications', icon: '🔔', badge: 12 },
-  { id: 'saved', label: 'Saved', icon: '🔖' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={2} /> },
+  { id: 'nearby', label: 'Nearby Needs', icon: <MapPin size={18} strokeWidth={2} /> },
+  { id: 'search', label: 'Search Needs', icon: <Search size={18} strokeWidth={2} /> },
+  { id: 'report', label: 'Report Need', icon: <PlusCircle size={18} strokeWidth={2} /> },
+  { id: 'activities', label: 'My Activities', icon: <ClipboardList size={18} strokeWidth={2} /> },
+  { id: 'messages', label: 'Messages', icon: <MessageSquare size={18} strokeWidth={2} />, badge: 3 },
+  { id: 'notifications', label: 'Notifications', icon: <Bell size={18} strokeWidth={2} />, badge: 12 },
+  { id: 'saved', label: 'Saved', icon: <Bookmark size={18} strokeWidth={2} /> },
+  { id: 'profile', label: 'Profile', icon: <User size={18} strokeWidth={2} /> },
+  { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={2} /> },
 ];
 
 const STATS: StatCard[] = [
@@ -332,6 +345,14 @@ const Dashboard: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [needsList, setNeedsList] = useState<Need[]>(NEEDS);
+  const [currentUser, setCurrentUser] = useState<{ name: string; role: string; avatar: string } | null>(() => {
+    try {
+      const stored = localStorage.getItem('sahaaye_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const addRipple = useRipple();
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -411,11 +432,11 @@ const Dashboard: React.FC = () => {
             <img
               src="/sahaaye-logo.png"
               alt="Sahaaye Logo"
-              style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: '8px' }}
+              style={{ width: '72px', height: '72px', objectFit: 'contain' }}
             />
           </div>
           <div className="logo-text">
-            <h2>SAHAAYE</h2>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>SAHAAYE</h2>
             <span>Discover · Connect · Contribute</span>
           </div>
         </a>
@@ -485,26 +506,39 @@ const Dashboard: React.FC = () => {
               </svg>
             </button>
 
-            <div className="icon-btn ripple-container" onClick={(e) => { addRipple(e); showToast('🔔 12 new notifications'); }}>
+            <div className="icon-btn ripple-container" onClick={(e) => { addRipple(e); showToast(currentUser ? '🔔 12 new notifications' : '🔔 Please login to view notifications'); }}>
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              <div className="badge">12</div>
+              {currentUser && <div className="badge">12</div>}
             </div>
 
-            <div
-              className="user-chip ripple-container"
-              onClick={(e) => { addRipple(e); showToast('👤 Rohit\'s Profile'); }}
-            >
-              <div className="user-avatar">R</div>
-              <div className="user-info">
-                <div className="user-name">Rohit</div>
-                <div className="user-role">Helper</div>
+            {currentUser ? (
+              <div
+                className="user-chip ripple-container"
+                onClick={(e) => { addRipple(e); showToast(`👤 ${currentUser.name}'s Profile`); }}
+              >
+                <div className="user-avatar">{currentUser.avatar || currentUser.name.charAt(0)}</div>
+                <div className="user-info">
+                  <div className="user-name">{currentUser.name}</div>
+                  <div className="user-role">{currentUser.role || 'Helper'}</div>
+                </div>
+                <svg width="14" height="14" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </div>
-              <svg width="14" height="14" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </div>
+            ) : (
+              <button
+                className="signin-btn ripple-container"
+                onClick={(e) => {
+                  addRipple(e);
+                  showToast('🔑 Login modal / page jald hi open hoga!');
+                }}
+              >
+                <LogIn size={15} />
+                <span>Sign In</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -524,8 +558,12 @@ const Dashboard: React.FC = () => {
               <div className="hero-banner">
 
             <div className="hero-text">
-              <h1>Welcome Back, Rohit! 👋</h1>
-              <p>Small actions create big changes. Let's keep making the difference.</p>
+              <h1>{currentUser ? `Welcome Back, ${currentUser.name}! 👋` : 'Welcome to SAHAAYE! 🤝'}</h1>
+              <p>
+                {currentUser
+                  ? "Small actions create big changes. Let's keep making the difference."
+                  : "Discover local needs, connect with communities, and lend a helping hand across India."}
+              </p>
             </div>
             <div className="hero-illustration">
               <svg width="220" height="90" viewBox="0 0 220 90" fill="none" xmlns="http://www.w3.org/2000/svg">
