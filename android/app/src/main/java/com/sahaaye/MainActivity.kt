@@ -42,17 +42,23 @@ class MainActivity : ComponentActivity() {
                     val coroutineScope = rememberCoroutineScope()
                     val context = this@MainActivity
 
-                    val fetchLiveGps: () -> Unit = {
+                    val fetchLiveGpsSilently: () -> Unit = {
+                        coroutineScope.launch {
+                            val live = LiveLocationService.fetchCurrentLiveLocation(context)
+                            if (live != null) {
+                                currentLocation = live
+                            }
+                        }
+                    }
+
+                    val fetchLiveGpsExplicitly: () -> Unit = {
                         coroutineScope.launch {
                             isGpsLoading = true
-                            Toast.makeText(context, "📡 Accessing GPS & fetching live location...", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Fetching location...", Toast.LENGTH_SHORT).show()
                             val live = LiveLocationService.fetchCurrentLiveLocation(context)
                             isGpsLoading = false
                             if (live != null) {
                                 currentLocation = live
-                                Toast.makeText(context, "📍 Real GPS: ${live.name}", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Could not fetch GPS. Please check location settings.", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -65,16 +71,16 @@ class MainActivity : ComponentActivity() {
                         val fineGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
                         val coarseGranted = results[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
                         if (fineGranted || coarseGranted) {
-                            fetchLiveGps()
+                            fetchLiveGpsSilently()
                         }
                     }
 
-                    // Prompt user for permissions immediately on launch
+                    // Prompt user for permissions immediately on launch (fetch location silently with NO popup)
                     LaunchedEffect(Unit) {
                         if (!LiveLocationService.arePermissionsGranted(context)) {
                             permissionLauncher.launch(LiveLocationService.getRequiredPermissions())
                         } else if (LiveLocationService.hasLocationPermission(context)) {
-                            fetchLiveGps()
+                            fetchLiveGpsSilently()
                         }
                     }
 
@@ -101,7 +107,6 @@ class MainActivity : ComponentActivity() {
                                     currentRadiusKm = activeRadiusKm,
                                     onLocationChange = { newLoc ->
                                         currentLocation = newLoc
-                                        Toast.makeText(this@MainActivity, "📍 Location: ${newLoc.name}", Toast.LENGTH_SHORT).show()
                                     },
                                     onNavigateToNearby = {
                                         openNearbyInManualMode = false
@@ -120,7 +125,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             )
                                         } else {
-                                            fetchLiveGps()
+                                            fetchLiveGpsExplicitly()
                                         }
                                     },
                                     isGpsLoading = isGpsLoading,
@@ -142,7 +147,6 @@ class MainActivity : ComponentActivity() {
                                     onRadiusChange = { activeRadiusKm = it },
                                     onLocationChange = { newLoc ->
                                         currentLocation = newLoc
-                                        Toast.makeText(this@MainActivity, "📍 Set Location: ${newLoc.name}", Toast.LENGTH_SHORT).show()
                                     },
                                     initialManualMode = openNearbyInManualMode,
                                     onBackClick = {

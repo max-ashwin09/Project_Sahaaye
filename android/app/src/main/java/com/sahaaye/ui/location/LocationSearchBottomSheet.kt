@@ -51,15 +51,12 @@ fun LocationSearchBottomSheet(
     val fetchGps = {
         coroutineScope.launch {
             isDetectingLocation = true
-            Toast.makeText(context, "📡 Accessing GPS & fetching live location...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Fetching location...", Toast.LENGTH_SHORT).show()
             val live = LiveLocationService.fetchCurrentLiveLocation(context)
             isDetectingLocation = false
             if (live != null) {
                 onLocationSelected(live)
-                Toast.makeText(context, "📍 Real GPS: ${live.name}", Toast.LENGTH_SHORT).show()
                 onDismissRequest()
-            } else {
-                Toast.makeText(context, "Could not fetch GPS. Please check location settings.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -71,8 +68,6 @@ fun LocationSearchBottomSheet(
         val coarseGranted = perms[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
         if (fineGranted || coarseGranted) {
             fetchGps()
-        } else {
-            Toast.makeText(context, "Location permission is required for Live GPS", Toast.LENGTH_SHORT).show()
         }
     }
 

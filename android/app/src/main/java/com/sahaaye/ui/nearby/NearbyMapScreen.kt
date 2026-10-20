@@ -137,7 +137,7 @@ fun NearbyMapScreen(
         if (fineGranted || coarseGranted) {
             coroutineScope.launch {
                 isFetchingLiveLocation = true
-                Toast.makeText(context, "📡 Accessing GPS & fetching live location...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Fetching location...", Toast.LENGTH_SHORT).show()
                 val liveLoc = LiveLocationService.fetchCurrentLiveLocation(context)
                 isFetchingLiveLocation = false
                 if (liveLoc != null) {
@@ -148,13 +148,8 @@ fun NearbyMapScreen(
                         "renderActiveLocation(${liveLoc.latitude}, ${liveLoc.longitude}, $selectedRadiusKm, true);",
                         null
                     )
-                    Toast.makeText(context, "📍 Real GPS: ${liveLoc.name}", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Could not fetch GPS. Please check device location.", Toast.LENGTH_SHORT).show()
                 }
             }
-        } else {
-            Toast.makeText(context, "Location permission is required for Live GPS", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -169,7 +164,7 @@ fun NearbyMapScreen(
         } else {
             coroutineScope.launch {
                 isFetchingLiveLocation = true
-                Toast.makeText(context, "📡 Accessing GPS & fetching live location...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Fetching location...", Toast.LENGTH_SHORT).show()
                 val liveLoc = LiveLocationService.fetchCurrentLiveLocation(context)
                 isFetchingLiveLocation = false
                 if (liveLoc != null) {
@@ -180,9 +175,6 @@ fun NearbyMapScreen(
                         "renderActiveLocation(${liveLoc.latitude}, ${liveLoc.longitude}, $selectedRadiusKm, true);",
                         null
                     )
-                    Toast.makeText(context, "📍 Real GPS: ${liveLoc.name}", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Could not fetch GPS. Please check device location.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
