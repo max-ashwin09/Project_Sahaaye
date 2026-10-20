@@ -23,6 +23,7 @@ import com.sahaaye.ui.theme.*
 @Composable
 fun DashboardScreen(
     currentLocation: SahaayeLocation = SahaayeLocation.DEFAULT,
+    currentRadiusKm: Double = 5.0,
     onLocationChange: (SahaayeLocation) -> Unit = {},
     onNavigateToNearby: () -> Unit,
     onNavigateToReport: () -> Unit,
@@ -146,6 +147,7 @@ fun DashboardScreen(
                 currentLocationName = currentLocation.name,
                 currentLatitude = currentLocation.latitude,
                 currentLongitude = currentLocation.longitude,
+                radiusKm = currentRadiusKm,
                 onNeedPinClick = onNeedDetailClick,
                 onFullMapClick = onNavigateToNearby
             )

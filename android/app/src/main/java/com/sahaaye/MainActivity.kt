@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     var currentScreen by remember { mutableStateOf("splash") }
                     var currentLocation by remember { mutableStateOf(SahaayeLocation.DEFAULT) }
+                    var activeRadiusKm by remember { mutableStateOf(5.0) }
                     var openNearbyInManualMode by remember { mutableStateOf(false) }
 
                     BackHandler(enabled = currentScreen != "dashboard" && currentScreen != "splash") {
@@ -52,6 +53,7 @@ class MainActivity : ComponentActivity() {
                             "dashboard" -> {
                                 DashboardScreen(
                                     currentLocation = currentLocation,
+                                    currentRadiusKm = activeRadiusKm,
                                     onLocationChange = { newLoc ->
                                         currentLocation = newLoc
                                         Toast.makeText(this@MainActivity, "📍 Location: ${newLoc.name}", Toast.LENGTH_SHORT).show()
@@ -78,6 +80,8 @@ class MainActivity : ComponentActivity() {
                             "nearby" -> {
                                 NearbyMapScreen(
                                     currentLocation = currentLocation,
+                                    initialRadiusKm = activeRadiusKm,
+                                    onRadiusChange = { activeRadiusKm = it },
                                     onLocationChange = { newLoc ->
                                         currentLocation = newLoc
                                         Toast.makeText(this@MainActivity, "📍 Set Location: ${newLoc.name}", Toast.LENGTH_SHORT).show()

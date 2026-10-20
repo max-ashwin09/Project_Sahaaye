@@ -74,6 +74,8 @@ class MapWebBridge(
 @Composable
 fun NearbyMapScreen(
     currentLocation: SahaayeLocation = SahaayeLocation.DEFAULT,
+    initialRadiusKm: Double = 5.0,
+    onRadiusChange: (Double) -> Unit = {},
     onLocationChange: (SahaayeLocation) -> Unit = {},
     initialManualMode: Boolean = false,
     onBackClick: () -> Unit,
@@ -83,7 +85,7 @@ fun NearbyMapScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var selectedCategory by remember { mutableStateOf("All") }
-    var selectedRadiusKm by remember { mutableStateOf(5.0) }
+    var selectedRadiusKm by remember { mutableStateOf(initialRadiusKm) }
     var isMapView by remember { mutableStateOf(true) }
     var selectedNeed by remember { mutableStateOf<NeedItem?>(null) }
 
@@ -437,6 +439,7 @@ fun NearbyMapScreen(
                                             ),
                                             modifier = Modifier.clickable {
                                                 selectedRadiusKm = radius
+                                                onRadiusChange(radius)
                                                 showPinchHint = true
                                                 mapWebView?.evaluateJavascript(
                                                     "renderActiveLocation(${currentLocation.latitude}, ${currentLocation.longitude}, $radius, true);",
@@ -823,6 +826,7 @@ fun NearbyMapScreen(
                                 val entered = customRadiusInput.trim().toDoubleOrNull()
                                 if (entered != null && entered > 0.0) {
                                     selectedRadiusKm = entered
+                                    onRadiusChange(entered)
                                     showPinchHint = true
                                     mapWebView?.evaluateJavascript(
                                         "renderActiveLocation(${currentLocation.latitude}, ${currentLocation.longitude}, $entered, true);",

@@ -415,13 +415,6 @@ fun LiveMapCard(
                             .clip(CircleShape)
                             .background(StatCompleted)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "• ${radiusKm.toInt()} km radius",
-                        fontSize = 12.sp,
-                        color = TextSecondary,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
 
                 TextButton(onClick = onFullMapClick) {
