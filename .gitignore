@@ -26,6 +26,8 @@ credentials.json
 # Storage & Temporary Files
 storage/*
 !storage/.gitkeep
+backend/storage/needs/*
+!backend/storage/needs/.gitkeep
 tmp/
 temp/
 *.log

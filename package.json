@@ -16,7 +16,7 @@
     "test": "npm --prefix backend test && npm --prefix frontend test",
     "test:security": "npm --prefix backend run test:security",
     "test:moderation": "jest tests/security/abuse/moderation.test.ts",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "tsc --noEmit --project backend/tsconfig.json && tsc --noEmit --project frontend/tsconfig.json && tsc --noEmit --project shared/tsconfig.json",
     "audit:security": "npm audit --audit-level=high"
   },
   "devDependencies": {
