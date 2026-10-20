@@ -38,7 +38,7 @@ fun TopHeaderBar(
     selectedLocation: String,
     onLocationClick: () -> Unit,
     onNotificationClick: () -> Unit,
-    onProfileClick: () -> Unit,
+    onProfileClick: () -> Unit = {},
     onSearchClick: () -> Unit
 ) {
     Surface(
@@ -49,176 +49,135 @@ fun TopHeaderBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Brand row
+            // 1. Centered SAHAAYE Logo & Name
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.clickable { onLocationClick() }
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.sahaaye_logo),
+                    contentDescription = "Sahaaye Logo",
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "SAHAAYE",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BrandPrimary,
+                    letterSpacing = 0.5.sp
+                )
+            }
+
+            // 2. Centered Slogan directly below Logo
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "People Help People",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextSecondary
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 3. Single Row with 3 elements: [Location Pill] + [Search Box] + [Notification Bell]
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Logo & Name
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                // Location Pill
+                Surface(
+                    color = BorderLight,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.clickable { onLocationClick() }
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.sahaaye_logo),
-                        contentDescription = "Sahaaye Logo",
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "SAHAAYE",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BrandPrimary
-                        )
-                        Text(
-                            text = "People Help People",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = TextSecondary
-                        )
-                    }
-                }
-
-                // Action icons: Location Pill, Notification, User Chip
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Location Pill
-                    Surface(
-                        color = BorderLight,
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.clickable { onLocationClick() }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = "Location",
-                                tint = BrandPrimary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = selectedLocation,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
-                            )
-                        }
-                    }
-
-                    // Notification Bell with Badge
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(BorderLight)
-                            .clickable { onNotificationClick() },
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Notifications,
-                            contentDescription = "Notifications",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(20.dp)
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "Location",
+                            tint = BrandPrimary,
+                            modifier = Modifier.size(15.dp)
                         )
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 2.dp, y = (-2).dp)
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(AccentRose),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "12",
-                                color = TextInverted,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    // User Profile Chip
-                    Surface(
-                        color = BorderLight,
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.clickable { onProfileClick() }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .clip(CircleShape)
-                                    .background(BrandPrimary),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "R",
-                                    color = TextInverted,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Column {
-                                Text(
-                                    text = "Rohit",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "Helper",
-                                    fontSize = 10.sp,
-                                    color = TextMuted
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = selectedLocation,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(10.dp))
+                // Search Box (Middle - fills flexible remaining space)
+                Surface(
+                    color = BorderLight,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSearchClick() }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Search needs…",
+                            color = TextMuted,
+                            fontSize = 12.sp,
+                            maxLines = 1
+                        )
+                    }
+                }
 
-            // Search Bar
-            Surface(
-                color = BorderLight,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSearchClick() }
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                // Notification Bell with Badge (Right)
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(BorderLight)
+                        .clickable { onNotificationClick() },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = TextMuted,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = Icons.Outlined.Notifications,
+                        contentDescription = "Notifications",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(19.dp)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Search needs, location, or keywords…",
-                        color = TextMuted,
-                        fontSize = 13.sp
-                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-2).dp, y = 2.dp)
+                            .size(14.dp)
+                            .clip(CircleShape)
+                            .background(AccentRose),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "12",
+                            color = TextInverted,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -248,7 +207,7 @@ fun WelcomeHeroCard() {
         ) {
             Column {
                 Text(
-                    text = "Welcome Back, Rohit! 👋",
+                    text = "Welcome to SAHAAYE! 👋",
                     fontSize = 19.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
