@@ -28,12 +28,12 @@ import kotlinx.coroutines.launch
 fun AnimatedSplashScreen(
     onSplashFinished: () -> Unit
 ) {
-    // Animation drivers - start partially visible so there is zero white flash
-    val scaleAnim = remember { Animatable(0.75f) }
-    val alphaAnim = remember { Animatable(0.4f) }
-    val textAlphaAnim = remember { Animatable(0.2f) }
+    // Animation drivers - start at 1f so it seamlessly matches the native splash window
+    val scaleAnim = remember { Animatable(0.96f) }
+    val alphaAnim = remember { Animatable(1f) }
+    val textAlphaAnim = remember { Animatable(0f) }
 
-    // Pulsing background circle animation
+    // Pulsing background halo animation
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -57,9 +57,6 @@ fun AnimatedSplashScreen(
     LaunchedEffect(Unit) {
         // Run animations concurrently
         launch {
-            alphaAnim.animateTo(1f, animationSpec = tween(400))
-        }
-        launch {
             scaleAnim.animateTo(
                 targetValue = 1f,
                 animationSpec = spring(
@@ -69,7 +66,7 @@ fun AnimatedSplashScreen(
             )
         }
         launch {
-            delay(150)
+            delay(120)
             textAlphaAnim.animateTo(1f, animationSpec = tween(500))
         }
 
@@ -84,7 +81,7 @@ fun AnimatedSplashScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFF0FDF4), // Emerald tint
+                        Color(0xFFF0FDF4), // Soft Emerald tint
                         Color(0xFFEFF6FF), // Soft Blue tint
                         Color(0xFFFFFFFF)  // Pure White
                     )
@@ -96,44 +93,32 @@ fun AnimatedSplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo Container with Pulsing Halo
+            // Logo Container with Pulsing Halo - Clean emblem matching native splash
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(180.dp)
+                modifier = Modifier.size(200.dp)
             ) {
-                // Outer Pulse Ring
+                // Outer Subtle Halo
                 Box(
                     modifier = Modifier
-                        .size(140.dp)
+                        .size(150.dp)
                         .scale(pulseScale)
                         .alpha(pulseAlpha)
-                        .background(BrandPrimary, CircleShape)
+                        .background(BrandPrimaryLight, CircleShape)
                 )
 
-                // Outer Soft Card Surface
-                Surface(
-                    shape = RoundedCornerShape(32.dp),
-                    color = Color.White,
-                    shadowElevation = 12.dp,
+                // High-Res Brand Emblem (Enlarged to 136dp as requested)
+                Image(
+                    painter = painterResource(id = R.drawable.sahaaye_icon),
+                    contentDescription = "SAHAAYE Logo",
                     modifier = Modifier
-                        .size(116.dp)
+                        .size(136.dp)
                         .scale(scaleAnim.value)
                         .alpha(alphaAnim.value)
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.padding(14.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.sahaaye_icon),
-                            contentDescription = "SAHAAYE Logo",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
+                )
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Animated Brand Title
             Text(
@@ -144,7 +129,7 @@ fun AnimatedSplashScreen(
                 letterSpacing = 2.sp,
                 modifier = Modifier
                     .scale(scaleAnim.value)
-                    .alpha(alphaAnim.value)
+                    .alpha(textAlphaAnim.value)
             )
 
             Spacer(modifier = Modifier.height(6.dp))
