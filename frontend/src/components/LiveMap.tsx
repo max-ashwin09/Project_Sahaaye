@@ -764,127 +764,89 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         </div>
       </div>
 
-      {/* ─── Distance Customization & Radar Controller ────────────────────────── */}
-      <div className="livemap-distance-panel">
-        <div className="dist-panel-row dist-panel-row--top">
-          <div className="dist-label-wrap">
-            <span className="dist-radar-icon">⭕</span>
-            <div>
-              <span className="dist-title">Distance Area Filter</span>
-              <span className="dist-center-sub">Center: {centerName}</span>
-            </div>
-          </div>
+      {/* ─── Compact Unified Distance Bar (Short & All-in-One Row) ───────────── */}
+      <div className="livemap-compact-distance-bar">
+        <div className="compact-dist-left">
+          <span className="compact-dist-label">
+            <span className="compact-radar-icon">⭕</span>
+            <strong>Distance:</strong>
+          </span>
 
-          {/* Live stats inside circle */}
-          <div className="dist-stats-hud">
-            <div className="dist-stat-badge stat-radius">
-              <span className="stat-label">Radius</span>
-              <strong className="stat-value">{radiusKm} km</strong>
-            </div>
-            <div className="dist-stat-badge stat-area">
-              <span className="stat-label">Coverage</span>
-              <strong className="stat-value">~{coverageAreaSqKm} km²</strong>
-            </div>
-            <div className="dist-stat-badge stat-needs">
-              <span className="stat-label">Inside Circle</span>
-              <strong className="stat-value highlight-num">
-                {inRangeCount} / {filteredNeeds.length}
-              </strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Distance Controls: Presets, Manual input & Slider */}
-        <div className="dist-panel-row dist-panel-controls-row">
-          {/* Preset Buttons */}
-          <div className="dist-preset-chips">
-            <span className="dist-quick-label">Presets:</span>
-            {PRESET_DISTANCES.map((km) => (
+          {/* Quick 1km, 2km, 3km, 5km, 10km presets */}
+          <div className="compact-preset-group">
+            {[1, 2, 3, 5, 10].map((km) => (
               <button
                 key={km}
                 type="button"
-                className={`dist-preset-btn ${radiusKm === km ? 'active' : ''}`}
+                className={`compact-preset-pill ${radiusKm === km ? 'active' : ''}`}
                 onClick={() => handleDistancePreset(km)}
               >
-                {km} km {radiusKm === km && <Check size={12} className="check-svg" />}
+                {km} km {radiusKm === km && <Check size={11} className="compact-check-icon" />}
               </button>
             ))}
           </div>
 
-          {/* Manual Custom Distance Input */}
-          <div className="dist-manual-input-box">
-            <span className="manual-label">Manual Custom:</span>
-            <div className="input-group-styled">
-              <button
-                type="button"
-                className="step-btn"
-                title="Decrease by 0.5 km"
-                onClick={() => {
-                  const next = Math.max(0.5, Math.round((radiusKm - 0.5) * 10) / 10);
-                  setRadiusKm(next);
-                  setManualInput(String(next));
-                }}
-              >
-                −
-              </button>
-              <input
-                type="number"
-                step="0.1"
-                min="0.5"
-                max="100"
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleManualInputApply();
-                }}
-                className="manual-num-input"
-                placeholder="e.g. 4.5"
-                title="Type any distance in km"
-              />
-              <span className="input-unit">km</span>
-              <button
-                type="button"
-                className="step-btn"
-                title="Increase by 0.5 km"
-                onClick={() => {
-                  const next = Math.min(100, Math.round((radiusKm + 0.5) * 10) / 10);
-                  setRadiusKm(next);
-                  setManualInput(String(next));
-                }}
-              >
-                +
-              </button>
-              <button
-                type="button"
-                className="btn-apply-dist"
-                onClick={handleManualInputApply}
-                title="Apply custom distance to live circle"
-              >
-                Set
-              </button>
-            </div>
+          {/* Integrated Manual Stepper & Input in the SAME line */}
+          <div className="compact-manual-stepper">
+            <button
+              type="button"
+              className="compact-step-btn"
+              title="Decrease by 0.5 km"
+              onClick={() => {
+                const next = Math.max(0.5, Math.round((radiusKm - 0.5) * 10) / 10);
+                setRadiusKm(next);
+                setManualInput(String(next));
+              }}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              step="0.1"
+              min="0.5"
+              max="100"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              onBlur={handleManualInputApply}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleManualInputApply();
+              }}
+              className="compact-manual-input"
+              placeholder="km"
+              title="Type any distance manually"
+            />
+            <span className="compact-unit-label">km</span>
+            <button
+              type="button"
+              className="compact-step-btn"
+              title="Increase by 0.5 km"
+              onClick={() => {
+                const next = Math.min(100, Math.round((radiusKm + 0.5) * 10) / 10);
+                setRadiusKm(next);
+                setManualInput(String(next));
+              }}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className="compact-btn-set"
+              onClick={handleManualInputApply}
+              title="Apply manual distance"
+            >
+              Set
+            </button>
           </div>
         </div>
 
-        {/* Real-time Slider */}
-        <div className="dist-slider-container">
-          <input
-            type="range"
-            min="0.5"
-            max="25"
-            step="0.5"
-            value={radiusKm}
-            onChange={handleSliderChange}
-            className="dist-slider-range"
-            title="Drag slider to fluidly expand or contract distance circle"
-          />
-          <div className="slider-ticks">
-            <span>0.5 km</span>
-            <span>5 km</span>
-            <span>10 km</span>
-            <span>15 km</span>
-            <span>20 km</span>
-            <span>25 km</span>
+        {/* Right side: Compact inline stats */}
+        <div className="compact-dist-right">
+          <div className="compact-stats-pill">
+            <span className="compact-stat-num"><strong>{radiusKm} km</strong></span>
+            <span className="compact-stat-dot">•</span>
+            <span className="compact-stat-sub">~{coverageAreaSqKm} km²</span>
+            <span className="compact-stat-dot">•</span>
+            <span className="compact-stat-inrange">🎯 {inRangeCount} / {filteredNeeds.length} in circle</span>
           </div>
         </div>
       </div>
