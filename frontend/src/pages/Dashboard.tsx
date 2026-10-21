@@ -773,53 +773,6 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-          {/* ── ANDROID APP DOWNLOAD CARD ─────────────────────────────────── */}
-          <div className="app-download-card">
-            <div className="app-card-left">
-              <div className="app-avatar-badge">
-                <Smartphone size={28} className="app-phone-icon" />
-                <span className="app-pulse-dot" />
-              </div>
-              <div className="app-card-details">
-                <div className="app-card-title-row">
-                  <h3 className="app-card-title">SAHAAYE for Android</h3>
-                  <span className="app-version-chip">v{apkInfo?.version || '1.0'} Official</span>
-                  <span className="app-sync-chip">🟢 Auto-Synced APK</span>
-                </div>
-                <p className="app-card-desc">
-                  Capture geo-verified photo & video proofs with automatic coordinate watermark, report local needs directly from the ground, and stay connected with real-time aid alerts.
-                </p>
-                <div className="app-highlights">
-                  <span className="highlight-pill">📸 Geo-Camera & Flash</span>
-                  <span className="highlight-pill">🎥 HD Video Proofs</span>
-                  <span className="highlight-pill">📍 Real-Time GPS Watermark</span>
-                  <span className="highlight-pill">⚡ Always Latest Build</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="app-card-right">
-              <a
-                href={apkInfo?.downloadUrl || '/downloads/sahaaye-latest.apk'}
-                download="Sahaaye-Latest.apk"
-                className="app-download-action-btn ripple-container"
-                onClick={(e) => {
-                  addRipple(e);
-                  showToast('📥 Downloading SAHAAYE Android APK (Direct Install)…');
-                }}
-              >
-                <ArrowDownToLine size={20} />
-                <div className="btn-label-group">
-                  <span className="btn-title">Download APK</span>
-                  <span className="btn-meta">{apkInfo?.fileSizeMb || '25 MB'} • Direct Install</span>
-                </div>
-              </a>
-              <div className="app-install-note">
-                ✓ Tap Download &gt; Open file &gt; Install on phone
-              </div>
-            </div>
-          </div>
-
           {/* ── STAT CARDS ──────────────────────────────────────────────── */}
           <div className="stats-row">
             {STATS.map((stat) => (
