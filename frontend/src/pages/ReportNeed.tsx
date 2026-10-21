@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Camera,
   Video,
@@ -20,6 +20,9 @@ import {
   ArrowRight,
   Info,
   EyeOff,
+  Eye,
+  Upload,
+  Check,
 } from 'lucide-react';
 import { TRANSLATIONS } from '../utils/i18n';
 import { useLanguageStore } from '../stores/useLanguageStore';
@@ -217,8 +220,133 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
     );
   }, [headerCity, t.gpsRequiredNotice]);
 
-  // ─── Manual / Retrigger Face Blur on Photo ───────────────────────────────
+  // ─── Image Upload & Instant Face Blur Option ─────────────────────────────
+  interface PendingBlurImage {
+    originalDataUrl: string;
+    blurredDataUrl: string;
+    currentDataUrl: string;
+    facesCount: number;
+    isBlurred: boolean;
+    lat?: number;
+    lng?: number;
+    acc?: number;
+    existingId?: string;
+  }
+
+  const [pendingBlurImage, setPendingBlurImage] = useState<PendingBlurImage | null>(null);
   const [isProcessingBlur, setIsProcessingBlur] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (mediaItems.length >= 5) {
+      showToast(t.maxMediaReached);
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setMediaError(lang === 'hi' ? 'केवल इमेज फाइलें (JPG, PNG, WebP) मान्य हैं।' : 'Only image files (JPG, PNG, WebP) are allowed.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setMediaError(lang === 'hi' ? 'फ़ाइल का साइज़ 10MB से कम होना चाहिए।' : 'File size must be under 10MB.');
+      return;
+    }
+
+    setMediaError(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const rawUrl = event.target?.result as string;
+      if (!rawUrl) return;
+
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = () => res(true);
+        img.onerror = rej;
+        img.src = rawUrl;
+      });
+
+      const maxDim = 1400;
+      let w = img.width;
+      let h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+
+      // 1. Prepare Base Canvas with Geo-Stamp
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Geo-Stamp
+      const lat = location?.lat ?? 22.7196;
+      const lng = location?.lng ?? 75.8577;
+      const acc = location?.acc ?? 20;
+
+      const bannerHeight = Math.max(50, Math.round(h * 0.08));
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.fillRect(0, h - bannerHeight, w, bannerHeight);
+      ctx.fillStyle = '#0d9488';
+      ctx.fillRect(0, h - bannerHeight, w, 3);
+
+      const now = new Date();
+      const dateFormatted = now.toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+      });
+      const fontSize = Math.max(12, Math.round(bannerHeight * 0.28));
+      ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textBaseline = 'middle';
+      const line1 = `📍 GEO-STAMPED: ${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E (±${acc}m) • ${dateFormatted}`;
+      const line2 = `🛡️ SAHAAYE VERIFIED COMMUNITY PROOF • DIGNITY-FIRST`;
+      ctx.fillText(line1, 14, h - bannerHeight + bannerHeight * 0.35);
+      ctx.font = `500 ${Math.round(fontSize * 0.8)}px system-ui, -apple-system, sans-serif`;
+      ctx.fillStyle = '#5eead4';
+      ctx.fillText(line2, 14, h - bannerHeight + bannerHeight * 0.75);
+
+      const originalDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+      // 2. Prepare Blurred Version Canvas
+      const blurCanvas = document.createElement('canvas');
+      blurCanvas.width = w;
+      blurCanvas.height = h;
+      const blurCtx = blurCanvas.getContext('2d');
+      if (!blurCtx) return;
+      blurCtx.drawImage(canvas, 0, 0);
+
+      const facesCount = await blurAllFacesOnCanvas(blurCanvas, true);
+      const blurredDataUrl = blurCanvas.toDataURL('image/jpeg', 0.9);
+
+      // 3. Immediately Open Face Blur Option Modal!
+      setPendingBlurImage({
+        originalDataUrl,
+        blurredDataUrl,
+        currentDataUrl: facesCount > 0 ? blurredDataUrl : originalDataUrl,
+        facesCount,
+        isBlurred: facesCount > 0,
+        lat,
+        lng,
+        acc,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleBlurCapturedPhoto = async (id: string) => {
     const item = mediaItems.find((m) => m.id === id);
@@ -233,30 +361,74 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
         img.src = item.dataUrl;
       });
 
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        const count = await blurAllFacesOnCanvas(canvas, true);
-        const updatedUrl = canvas.toDataURL('image/jpeg', 0.88);
+      const originalDataUrl = item.dataUrl;
+      const blurCanvas = document.createElement('canvas');
+      blurCanvas.width = img.width;
+      blurCanvas.height = img.height;
+      const bCtx = blurCanvas.getContext('2d');
+      if (bCtx) {
+        bCtx.drawImage(img, 0, 0);
+        const facesCount = await blurAllFacesOnCanvas(blurCanvas, true);
+        const blurredDataUrl = blurCanvas.toDataURL('image/jpeg', 0.9);
 
-        setMediaItems((prev) =>
-          prev.map((m) => (m.id === id ? { ...m, dataUrl: updatedUrl } : m))
-        );
-
-        if (count > 0) {
-          showToast(lang === 'hi' ? `✓ ${count} चेहरा(े) सफलतापूर्वक ब्लर किए गए!` : `✓ ${count} face(s) successfully blurred!`);
-        } else {
-          showToast(lang === 'hi' ? '✓ गोपनीयता ब्लर लागू कर दिया गया।' : '✓ Privacy blur applied to photo.');
-        }
+        setPendingBlurImage({
+          originalDataUrl,
+          blurredDataUrl,
+          currentDataUrl: blurredDataUrl,
+          facesCount,
+          isBlurred: true,
+          existingId: id,
+          lat: item.lat,
+          lng: item.lng,
+          acc: item.acc,
+        });
       }
     } catch (err) {
       console.warn('Blur photo error:', err);
     } finally {
       setIsProcessingBlur(null);
     }
+  };
+
+  const handleConfirmBlurChoice = () => {
+    if (!pendingBlurImage) return;
+
+    if (pendingBlurImage.existingId) {
+      setMediaItems((prev) =>
+        prev.map((m) =>
+          m.id === pendingBlurImage.existingId
+            ? { ...m, dataUrl: pendingBlurImage.currentDataUrl }
+            : m
+        )
+      );
+      showToast(
+        pendingBlurImage.isBlurred
+          ? (lang === 'hi' ? '✓ चेहरा ब्लर लागू किया गया' : '✓ Face blur applied')
+          : (lang === 'hi' ? '✓ मूल फ़ोटो सुरक्षित रखी गई' : '✓ Original photo saved')
+      );
+    } else {
+      const newItem: CameraMediaItem = {
+        id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        type: 'photo',
+        dataUrl: pendingBlurImage.currentDataUrl,
+        lat: pendingBlurImage.lat ?? (location?.lat ?? 22.7196),
+        lng: pendingBlurImage.lng ?? (location?.lng ?? 75.8577),
+        acc: pendingBlurImage.acc ?? (location?.acc ?? 20),
+        timestamp: new Date().toISOString(),
+      };
+      setMediaItems((prev) => [...prev, newItem]);
+      setMediaError(null);
+      showToast(
+        pendingBlurImage.isBlurred
+          ? (lang === 'hi' ? '✓ फ़ोटो चेहरा ब्लर के साथ जोड़ी गई' : '✓ Photo added with privacy face blur')
+          : (lang === 'hi' ? '✓ फ़ोटो सफलतापूर्वक जोड़ी गई' : '✓ Photo added to report')
+      );
+    }
+    setPendingBlurImage(null);
+  };
+
+  const handleCancelBlurChoice = () => {
+    setPendingBlurImage(null);
   };
 
   // ─── 5. Step Validation & Navigation ──────────────────────────────────────
@@ -697,34 +869,79 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
               </p>
             </div>
 
-            {/* Single Prominent Live Camera Button */}
+            {/* Media Action Buttons: Live Camera + Upload Photo */}
             <div style={{ textAlign: 'center', padding: '24px 16px', background: '#f8fafc', borderRadius: 14, border: '2px dashed #cbd5e1' }}>
-              <button
-                type="button"
-                onClick={() => setIsCameraOpen(true)}
+              <div
                 style={{
-                  padding: '14px 28px',
-                  borderRadius: 12,
-                  background: '#0d9488',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: 10,
-                  boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)',
-                  transition: 'transform 0.1s ease',
+                  justifyContent: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
                 }}
               >
-                <Camera size={20} />
-                <span>{t.takePhotoVideoBtn}</span>
-              </button>
-              <p style={{ fontSize: 12, color: '#94a3b8', margin: '10px 0 0' }}>
+                {/* Take Photo / Video (Live Camera) */}
+                <button
+                  type="button"
+                  onClick={() => setIsCameraOpen(true)}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: 12,
+                    background: '#0d9488',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: 14.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)',
+                    transition: 'transform 0.1s ease',
+                  }}
+                >
+                  <Camera size={19} />
+                  <span>{t.takePhotoVideoBtn}</span>
+                </button>
+
+                {/* Upload Photo (Triggers Instant Face Blur Option Modal) */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: 12,
+                    background: '#ffffff',
+                    color: '#0d9488',
+                    border: '1.5px solid #0d9488',
+                    fontSize: 14.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 2px 8px rgba(13, 148, 136, 0.1)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Upload size={19} />
+                  <span>{t.uploadPhotoBtn}</span>
+                </button>
+
+                {/* Hidden File Input for Image Upload */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={handleFileUpload}
+                />
+              </div>
+
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: '12px 0 0' }}>
                 {lang === 'hi'
-                  ? 'लाइव कैमरा खोलता है और हर फोटो पर GPS जियो-स्टैम्प दर्ज करता है (अधिकतम 5 आइटम)'
-                  : 'Opens live full-screen camera and burns GPS coordinates into every photo (Max 5 captures)'}
+                  ? 'लाइव कैमरे से लें या फ़ोटो अपलोड करें — अपलोड होते ही चेहरा ब्लर करने का विकल्प मिलेगा (अधिकतम 5 आइटम)'
+                  : 'Capture live camera proof or upload photos — instant face blur option appears on upload (Max 5 captures)'}
               </p>
             </div>
 
@@ -753,24 +970,50 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
             {/* Captured Items Thumbnails */}
             {mediaItems.length > 0 && (
               <div style={{ marginTop: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
                     {t.itemsCount} ({mediaItems.length}/5)
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsCameraOpen(true)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#0d9488',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    + {lang === 'hi' ? 'और जोड़ें' : 'Add more'}
-                  </button>
+                  {mediaItems.length < 5 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#0d9488',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Upload size={13} />
+                        <span>{t.uploadPhotoBtn}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsCameraOpen(true)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#0d9488',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Camera size={13} />
+                        <span>+ {lang === 'hi' ? 'कैमरा' : 'Camera'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
@@ -1432,6 +1675,340 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
           if (items.length > 0) setMediaError(null);
         }}
       />
+
+      {/* ════ FACE BLUR OPTION MODAL (Appears on Image Upload & Edit) ════ */}
+      {pendingBlurImage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10006,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              background: '#ffffff',
+              borderRadius: 18,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '92vh',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#f8fafc',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: 'rgba(13, 148, 136, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#0d9488',
+                  }}
+                >
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                    {t.blurModalTitle}
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>
+                    {t.blurModalSubtitle}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelBlurChoice}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 4,
+                  borderRadius: 6,
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body / Preview */}
+            <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Detection status tag */}
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: pendingBlurImage.facesCount > 0 ? '#ecfdf5' : '#f8fafc',
+                  border: pendingBlurImage.facesCount > 0 ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+                  color: pendingBlurImage.facesCount > 0 ? '#065f46' : '#64748b',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                {pendingBlurImage.facesCount > 0 ? (
+                  <>
+                    <CheckCircle2 size={16} color="#059669" />
+                    <span>✓ {pendingBlurImage.facesCount} {t.facesDetectedBadge}</span>
+                  </>
+                ) : (
+                  <>
+                    <Info size={16} color="#64748b" />
+                    <span>{t.noFacesDetectedBadge}</span>
+                  </>
+                )}
+              </div>
+
+              {/* Live Canvas / Image Preview */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: 240,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  background: '#0f172a',
+                  border: '1.5px solid #cbd5e1',
+                }}
+              >
+                <img
+                  src={pendingBlurImage.currentDataUrl}
+                  alt="Upload preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    left: 8,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: pendingBlurImage.isBlurred ? 'rgba(13, 148, 136, 0.9)' : 'rgba(15, 23, 42, 0.85)',
+                    color: '#ffffff',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  {pendingBlurImage.isBlurred ? (
+                    <>
+                      <EyeOff size={12} />
+                      <span>{lang === 'hi' ? 'ब्लर लागू' : 'Blur Active'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye size={12} />
+                      <span>{lang === 'hi' ? 'मूल फ़ोटो' : 'Original Photo'}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Selection Options (Cards) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Option 1: Blur Faces */}
+                <div
+                  onClick={() =>
+                    setPendingBlurImage((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            currentDataUrl: prev.blurredDataUrl,
+                            isBlurred: true,
+                          }
+                        : null
+                    )
+                  }
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: pendingBlurImage.isBlurred ? '2px solid #0d9488' : '1.5px solid #e2e8f0',
+                    background: pendingBlurImage.isBlurred ? '#f0fdfa' : '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        background: pendingBlurImage.isBlurred ? '#0d9488' : '#f1f5f9',
+                        color: pendingBlurImage.isBlurred ? '#ffffff' : '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <EyeOff size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>
+                        {t.blurOptionBlur}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        {t.blurOptionBlurDesc}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      border: pendingBlurImage.isBlurred ? '5px solid #0d9488' : '2px solid #cbd5e1',
+                      background: '#ffffff',
+                    }}
+                  />
+                </div>
+
+                {/* Option 2: Original Photo */}
+                <div
+                  onClick={() =>
+                    setPendingBlurImage((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            currentDataUrl: prev.originalDataUrl,
+                            isBlurred: false,
+                          }
+                        : null
+                    )
+                  }
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: !pendingBlurImage.isBlurred ? '2px solid #0d9488' : '1.5px solid #e2e8f0',
+                    background: !pendingBlurImage.isBlurred ? '#f0fdfa' : '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        background: !pendingBlurImage.isBlurred ? '#0d9488' : '#f1f5f9',
+                        color: !pendingBlurImage.isBlurred ? '#ffffff' : '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Eye size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>
+                        {t.blurOptionOriginal}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        {t.blurOptionOriginalDesc}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      border: !pendingBlurImage.isBlurred ? '5px solid #0d9488' : '2px solid #cbd5e1',
+                      background: '#ffffff',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div
+              style={{
+                padding: '14px 20px',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: 10,
+                background: '#f8fafc',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCancelBlurChoice}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 8,
+                  border: '1.5px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t.blurModalCancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBlurChoice}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#0d9488',
+                  color: '#ffffff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 2px 6px rgba(13, 148, 136, 0.25)',
+                }}
+              >
+                <Check size={16} />
+                <span>{t.blurModalConfirm}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
