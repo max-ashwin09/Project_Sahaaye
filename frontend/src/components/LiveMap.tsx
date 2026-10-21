@@ -430,11 +430,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       zIndexOffset: 1000,
     }).addTo(map);
 
-    centerMarker.bindTooltip('<b>📍 Search Center</b><br/>Drag or click anywhere on map to move', {
-      direction: 'top',
-      offset: [0, -18],
-    });
-
     // Update center when user drags marker
     centerMarker.on('dragend', (e) => {
       const pos = e.target.getLatLng();
@@ -478,12 +473,12 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         easeLinearity: 0.25,
       });
 
-      // 3. Automatically dismiss the micro-popup in under 1 second (750ms)
+      // 3. Automatically dismiss the micro-popup in exactly 1 second (1000ms)
       setTimeout(() => {
         if (mapRef.current) {
           mapRef.current.closePopup(microPopup);
         }
-      }, 750);
+      }, 1000);
     });
 
     // Needs Layer Group
