@@ -176,3 +176,98 @@ export async function reverseGeocodeToLocation(
     radiusKm,
   };
 }
+
+export interface ResolvedGPSLocation {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  city?: string;
+  state?: string;
+  area?: string | null;
+  source: 'gps_high' | 'gps_low' | 'ip_network';
+}
+
+/**
+ * Robust Multi-tier Geolocation Resolver:
+ * Tier 1: Hardware-accelerated Browser GPS (high accuracy, 4s timeout)
+ * Tier 2: Low-accuracy Cellular / WiFi Browser Geolocation (5s timeout)
+ * Tier 3: Fast IP-network Geolocation (geojs.io / ipwho.is) - guarantees connection even if browser GPS is blocked/unsupported!
+ */
+export async function detectCurrentLocation(): Promise<ResolvedGPSLocation> {
+  // Tier 1: High accuracy browser geolocation
+  if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 4000,
+          maximumAge: 0,
+        });
+      });
+      return {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracy: Math.round(pos.coords.accuracy) || 10,
+        source: 'gps_high',
+      };
+    } catch {
+      // Tier 2: Low-accuracy browser geolocation
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 5000,
+            maximumAge: 60000,
+          });
+        });
+        return {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: Math.round(pos.coords.accuracy) || 30,
+          source: 'gps_low',
+        };
+      } catch {
+        // Proceed to Tier 3 IP Geolocation
+      }
+    }
+  }
+
+  // Tier 3: IP-network Geolocation Fallback
+  try {
+    const res = await fetch('https://get.geojs.io/v1/ip/geo.json', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      const lat = parseFloat(data.latitude);
+      const lng = parseFloat(data.longitude);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return {
+          latitude: lat,
+          longitude: lng,
+          accuracy: data.accuracy ? parseInt(data.accuracy, 10) : 50,
+          city: data.city || undefined,
+          state: data.region || undefined,
+          source: 'ip_network',
+        };
+      }
+    }
+  } catch {}
+
+  try {
+    const res2 = await fetch('https://ipwho.is/', { cache: 'no-store' });
+    if (res2.ok) {
+      const data2 = await res2.json();
+      if (data2.success !== false && data2.latitude && data2.longitude) {
+        return {
+          latitude: parseFloat(data2.latitude),
+          longitude: parseFloat(data2.longitude),
+          accuracy: 50,
+          city: data2.city || undefined,
+          state: data2.region || undefined,
+          source: 'ip_network',
+        };
+      }
+    }
+  } catch {}
+
+  throw new Error('All GPS and IP location providers were unreachable.');
+}

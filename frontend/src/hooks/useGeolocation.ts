@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { detectCurrentLocation } from '../services/geocoding';
 
 export interface LocationState {
   exactLat: number | null;
@@ -78,8 +79,30 @@ export function useGeolocation() {
     return `${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E`;
   };
 
-  const fetchGps = useCallback(() => {
-    if (!navigator.geolocation) {
+  const fetchGps = useCallback(async () => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const pos = await detectCurrentLocation();
+      const lat = pos.latitude;
+      const lng = pos.longitude;
+      const acc = pos.accuracy;
+      const approx = generateApproximateLocation(lat, lng);
+      const readableAddress = await reverseGeocode(lat, lng);
+
+      setState({
+        exactLat: lat,
+        exactLng: lng,
+        accuracyMeters: acc,
+        publicLat: approx.lat,
+        publicLng: approx.lng,
+        address: readableAddress,
+        isLoading: false,
+        error: null,
+        isLowAccuracy: acc > 100,
+        source: pos.source === 'gps_high' ? 'gps' : 'default',
+      });
+    } catch {
       const fallbackLat = 22.7533;
       const fallbackLng = 75.8937;
       const approx = generateApproximateLocation(fallbackLat, fallbackLng);
@@ -91,68 +114,11 @@ export function useGeolocation() {
         publicLng: approx.lng,
         address: 'Vijay Nagar, Indore, Madhya Pradesh',
         isLoading: false,
-        error: 'Geolocation is not supported by your browser.',
+        error: 'Unable to connect to GPS or network location.',
         isLowAccuracy: true,
         source: 'default',
       });
-      return;
     }
-
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const acc = Math.round(pos.coords.accuracy);
-        const approx = generateApproximateLocation(lat, lng);
-
-        const readableAddress = await reverseGeocode(lat, lng);
-
-        setState({
-          exactLat: lat,
-          exactLng: lng,
-          accuracyMeters: acc,
-          publicLat: approx.lat,
-          publicLng: approx.lng,
-          address: readableAddress,
-          isLoading: false,
-          error: null,
-          isLowAccuracy: acc > 100,
-          source: 'gps',
-        });
-      },
-      (err) => {
-        let msg = 'Unable to retrieve your location.';
-        if (err.code === err.PERMISSION_DENIED) {
-          msg = 'Location permission was denied. Please allow GPS or select location on map.';
-        } else if (err.code === err.TIMEOUT) {
-          msg = 'GPS acquisition timed out. Please try refreshing or pick location on map.';
-        }
-
-        const fallbackLat = 22.7533;
-        const fallbackLng = 75.8937;
-        const approx = generateApproximateLocation(fallbackLat, fallbackLng);
-
-        setState({
-          exactLat: fallbackLat,
-          exactLng: fallbackLng,
-          accuracyMeters: null,
-          publicLat: approx.lat,
-          publicLng: approx.lng,
-          address: 'Vijay Nagar, Indore, Madhya Pradesh',
-          isLoading: false,
-          error: msg,
-          isLowAccuracy: true,
-          source: 'default',
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    );
   }, []);
 
   // Set manual coordinates when user picks a point on fallback Leaflet map

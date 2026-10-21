@@ -27,7 +27,7 @@ import { TRANSLATIONS } from '../utils/i18n';
 import { useLanguageStore } from '../stores/useLanguageStore';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { LiveCameraModal, CameraMediaItem } from '../components/LiveCameraModal';
-import { reverseGeocodeToLocation } from '../services/geocoding';
+import { reverseGeocodeToLocation, detectCurrentLocation } from '../services/geocoding';
 import { blurAllFacesOnCanvas, detectFacesOnCanvas } from '../utils/faceDetector';
 
 interface ReportNeedProps {
@@ -181,43 +181,35 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
   }, [mediaItems, location, headerCity]);
 
   // ─── 4. Refresh Location Action ───────────────────────────────────────────
-  const handleRefreshLocation = useCallback(() => {
-    if (!('geolocation' in navigator)) {
-      setLocationError(t.gpsRequiredNotice);
-      return;
-    }
-
+  const handleRefreshLocation = useCallback(async () => {
     setIsRefreshingGps(true);
     setLocationError(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        setIsRefreshingGps(false);
-        const { latitude, longitude, accuracy } = pos.coords;
-        const newLoc = {
-          lat: latitude,
-          lng: longitude,
-          acc: Math.round(accuracy),
-          address: `${headerCity || 'Indore'}, MP`,
-        };
-        setLocation(newLoc);
+    try {
+      const pos = await detectCurrentLocation();
+      const newLoc = {
+        lat: pos.latitude,
+        lng: pos.longitude,
+        acc: pos.accuracy,
+        address: `${headerCity || 'Indore'}, MP`,
+      };
+      setLocation(newLoc);
 
-        try {
-          const res = await reverseGeocodeToLocation(latitude, longitude);
-          if (res?.city) {
-            const formatted = res.area ? `${res.area}, ${res.city}, ${res.state}` : `${res.city}, ${res.state}`;
-            setLocation((prev) => (prev ? { ...prev, address: formatted } : prev));
-          }
-        } catch {}
-      },
-      (err) => {
-        setIsRefreshingGps(false);
-        console.warn('Refresh location error:', err);
-        setLocationError(t.gpsRequiredNotice);
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 6000 }
-    );
-  }, [headerCity, t.gpsRequiredNotice]);
+      try {
+        const res = await reverseGeocodeToLocation(pos.latitude, pos.longitude);
+        if (res?.city) {
+          const formatted = res.area ? `${res.area}, ${res.city}, ${res.state}` : `${res.city}, ${res.state}`;
+          setLocation((prev) => (prev ? { ...prev, address: formatted } : prev));
+        }
+      } catch {}
+      showToast(lang === 'hi' ? '✓ लोकेशन सफलतापूर्वक अपडेट हुई' : '✓ Location updated from live GPS');
+    } catch (err) {
+      console.warn('Refresh location error:', err);
+      setLocationError(t.gpsRequiredNotice);
+    } finally {
+      setIsRefreshingGps(false);
+    }
+  }, [headerCity, t.gpsRequiredNotice, showToast, lang]);
 
   // ─── Image Upload & Instant Face Blur Option ─────────────────────────────
   interface PendingBlurImage {

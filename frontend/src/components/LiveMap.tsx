@@ -26,6 +26,7 @@ import {
   Map,
 } from 'lucide-react';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
+import { detectCurrentLocation, reverseGeocodeToLocation } from '../services/geocoding';
 
 export interface NeedItem {
   id: string;
@@ -250,7 +251,8 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   const [showCustomise, setShowCustomise] = useState<boolean>(false);
   const [showCategoryMenu, setShowCategoryMenu] = useState<boolean>(false);
 
-  const { location: globalLocation } = useSelectedLocation();
+  const { location: globalLocation, setLocation: setGlobalLocation } = useSelectedLocation();
+  const [isGpsConnected, setIsGpsConnected] = useState<boolean>(false);
 
   // Sync LiveMap when global location changes in the header
   useEffect(() => {
@@ -801,31 +803,41 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     setManualInput(String(val));
   };
 
-  const handleLocateMe = () => {
-    showControlsTemporarily(2000);
-    if (!navigator.geolocation) {
-      if (onToast) onToast('Geolocation is not supported by your browser');
-      return;
-    }
-    if (onToast) onToast('📡 Detecting your current location…');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setCenterCoords([latitude, longitude]);
-        setCenterName('Your Live Location');
-        if (mapRef.current) {
-          mapRef.current.flyTo([latitude, longitude], 14, { duration: 1 });
+  const handleLocateMe = async () => {
+    showControlsTemporarily(2500);
+    if (onToast) onToast('📡 Connecting to live GPS…');
+
+    try {
+      const pos = await detectCurrentLocation();
+      const newLat = pos.latitude;
+      const newLng = pos.longitude;
+
+      setCenterCoords([newLat, newLng]);
+
+      let locName = pos.city ? `${pos.city}${pos.state ? `, ${pos.state}` : ''}` : 'Your Live Location';
+      try {
+        const geo = await reverseGeocodeToLocation(newLat, newLng, radiusKm);
+        if (geo?.city) {
+          locName = geo.area ? `${geo.area}, ${geo.city}` : `${geo.city}, ${geo.state}`;
+          setGlobalLocation(geo);
         }
-        if (onToast) onToast('📍 Map centered at your live location!');
-      },
-      () => {
-        // Fallback to Indore center
-        setCenterCoords([22.7533, 75.8937]);
-        setCenterName('Vijay Nagar, Indore');
-        if (onToast) onToast('Could not access GPS. Defaulted to Indore Hub.');
-      },
-      { timeout: 7000 }
-    );
+      } catch {}
+
+      setCenterName(locName);
+      setIsGpsConnected(true);
+
+      if (mapRef.current) {
+        mapRef.current.flyTo([newLat, newLng], 14, { duration: 1.1 });
+      }
+
+      const label = pos.source === 'gps_high' ? 'High-accuracy GPS' : pos.source === 'gps_low' ? 'Network GPS' : 'Live GeoIP';
+      if (onToast) onToast(`📍 GPS Connected: ${locName} (${label} ±${pos.accuracy}m)`);
+    } catch (err) {
+      console.warn('Locate error:', err);
+      setCenterCoords([22.7533, 75.8937]);
+      setCenterName('Vijay Nagar, Indore');
+      if (onToast) onToast('📍 Could not access GPS. Centered at Indore Hub.');
+    }
   };
 
   const handleResetToIndore = () => {
@@ -865,10 +877,15 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       {/* ─── Header Toolbar ───────────────────────────────────────────────────── */}
       <div className="livemap-header-bar">
         <div className="livemap-title-group">
-          <div className="livemap-indicator-pill">
+          <button
+            type="button"
+            className="livemap-indicator-pill"
+            onClick={handleLocateMe}
+            title="Click to connect GPS & center on your live location"
+          >
             <span className="livemap-pulse-dot"></span>
-            <span className="livemap-pulse-text">LIVE</span>
-          </div>
+            <span className="livemap-pulse-text">{isGpsConnected ? 'GPS CONNECTED' : 'LIVE'}</span>
+          </button>
           <h3 className="livemap-main-title">Live Map</h3>
         </div>
 

@@ -16,6 +16,7 @@ import { getShortState } from '../utils/geohash';
 import {
   searchLocationsNominatim,
   reverseGeocodeToLocation,
+  detectCurrentLocation,
   CITY_AREAS,
   AutocompleteResult,
 } from '../services/geocoding';
@@ -73,14 +74,14 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onToast }) =
   // Initial detection: if user hasn't explicitly set location and no prompt dismissed yet
   useEffect(() => {
     const hasPrompted = sessionStorage.getItem('sahaaye_geo_prompted');
-    if (!hasPrompted && navigator.geolocation) {
+    if (!hasPrompted) {
       sessionStorage.setItem('sahaaye_geo_prompted', 'true');
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
+      detectCurrentLocation()
+        .then(async (pos) => {
           try {
             const detected = await reverseGeocodeToLocation(
-              pos.coords.latitude,
-              pos.coords.longitude
+              pos.latitude,
+              pos.longitude
             );
             if (
               detected.city.toLowerCase() !== location.city.toLowerCase() ||
@@ -95,10 +96,8 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onToast }) =
               });
             }
           } catch {}
-        },
-        () => {},
-        { timeout: 5000, maximumAge: 60000 }
-      );
+        })
+        .catch(() => {});
     }
   }, [location.city, location.state, setDetectedPrompt]);
 
@@ -153,41 +152,21 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onToast }) =
   };
 
   // "Use my current location" handler
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setErrorMessage('Geolocation is not supported by your browser.');
-      return;
-    }
-
+  const handleUseCurrentLocation = async () => {
     setIsLocatingUser(true);
     setErrorMessage(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const loc = await reverseGeocodeToLocation(latitude, longitude, location.radiusKm);
-          setLocation(loc);
-          if (onToast) onToast(`📍 Location updated to ${loc.city}, ${getShortState(loc.state)}`);
-          setIsOpen(false);
-        } catch {
-          setErrorMessage('Could not resolve current address. Using GPS coordinates.');
-        } finally {
-          setIsLocatingUser(false);
-        }
-      },
-      (err) => {
-        setIsLocatingUser(false);
-        if (err.code === 1) {
-          setErrorMessage('Location permission denied. Please allow GPS access or search above.');
-        } else if (err.code === 3) {
-          setErrorMessage('Location request timed out. Please try searching your city.');
-        } else {
-          setErrorMessage('Unable to retrieve current location.');
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-    );
+    try {
+      const pos = await detectCurrentLocation();
+      const loc = await reverseGeocodeToLocation(pos.latitude, pos.longitude, location.radiusKm);
+      setLocation(loc);
+      if (onToast) onToast(`📍 Location updated to ${loc.city}, ${getShortState(loc.state)}`);
+      setIsOpen(false);
+    } catch {
+      setErrorMessage('Could not connect to GPS or network location. Please select a city above.');
+    } finally {
+      setIsLocatingUser(false);
+    }
   };
 
   // Select a search result

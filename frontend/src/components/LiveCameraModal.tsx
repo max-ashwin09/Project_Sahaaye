@@ -19,6 +19,7 @@ import {
 import { TRANSLATIONS } from '../utils/i18n';
 import { useLanguageStore } from '../stores/useLanguageStore';
 import { preloadFaceDetector, blurAllFacesOnCanvas } from '../utils/faceDetector';
+import { detectCurrentLocation } from '../services/geocoding';
 
 export interface CameraMediaItem {
   id: string;
@@ -213,42 +214,19 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
 
   // ─── 5. Request Fresh GPS Fix on Shutter ───────────────────────────────────
   const getFreshGpsFix = async (): Promise<{ lat: number; lng: number; acc: number } | null> => {
-    return new Promise((resolve) => {
-      if (!('geolocation' in navigator)) {
-        resolve(currentGps);
-        return;
-      }
-
-      let resolved = false;
-      const timer = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          resolve(currentGps); // Fallback to latest watchPosition fix
-        }
-      }, 4000);
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timer);
-            resolve({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              acc: Math.round(pos.coords.accuracy),
-            });
-          }
-        },
-        () => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timer);
-            resolve(currentGps); // Fallback to watchPosition
-          }
-        },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 4000 }
-      );
-    });
+    try {
+      const pos = await detectCurrentLocation();
+      const fix = {
+        lat: pos.latitude,
+        lng: pos.longitude,
+        acc: pos.accuracy,
+      };
+      setCurrentGps(fix);
+      setGpsLocked(true);
+      return fix;
+    } catch {
+      return currentGps || { lat: 22.7196, lng: 75.8577, acc: 20 };
+    }
   };
 
   // ─── 7. Capture Photo with Geo-Stamp ──────────────────────────────────────
