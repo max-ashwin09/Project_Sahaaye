@@ -234,6 +234,92 @@
   margin-left: 1px;
 }
 
+.compact-customise-pill {
+  gap: 4px;
+}
+
+.compact-customise-icon {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.compact-custom-val {
+  font-size: 11px;
+  opacity: 0.95;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+/* Customise Drawer / Tray */
+.compact-customise-tray {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 2px 4px 2px 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  animation: traySlideIn 0.18s ease-out;
+}
+
+@keyframes traySlideIn {
+  from { opacity: 0; transform: translateY(-2px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.customise-sub-presets {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.customise-mini-pill {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.customise-mini-pill:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.customise-mini-pill.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.customise-done-btn {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s ease;
+}
+
+.customise-done-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
 .compact-manual-stepper {
   display: inline-flex;
   align-items: center;

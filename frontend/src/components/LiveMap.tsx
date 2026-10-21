@@ -230,6 +230,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [autoFitBounds, setAutoFitBounds] = useState<boolean>(true);
   const [activeNeed, setActiveNeed] = useState<NeedItem | null>(null);
+  const [showCustomise, setShowCustomise] = useState<boolean>(false);
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -632,10 +633,10 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         <div className="livemap-title-group">
           <div className="livemap-indicator-pill">
             <span className="livemap-pulse-dot"></span>
-            <span className="livemap-pulse-text">LIVE RADAR</span>
+            <span className="livemap-pulse-text">LIVE</span>
           </div>
           <div>
-            <h3 className="livemap-main-title">Live Map & Dynamic Distance Radar</h3>
+            <h3 className="livemap-main-title">Live Map</h3>
             <p className="livemap-sub-title">
               Interactive highways, street names & satellite houses with real-time distance circle
             </p>
@@ -697,7 +698,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         </div>
       </div>
 
-      {/* ─── Compact Unified Distance Bar (Short & All-in-One Row) ───────────── */}
+      {/* ─── Compact Distance Bar: 1km, 3km, 5km + Customise Option ───────── */}
       <div className="livemap-compact-distance-bar">
         <div className="compact-dist-left">
           <span className="compact-dist-label">
@@ -705,71 +706,117 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             <strong>Distance:</strong>
           </span>
 
-          {/* Quick 1km, 2km, 3km, 5km, 10km presets */}
+          {/* Direct 1km, 3km, 5km presets only */}
           <div className="compact-preset-group">
-            {[1, 2, 3, 5, 10].map((km) => (
+            {[1, 3, 5].map((km) => (
               <button
                 key={km}
                 type="button"
-                className={`compact-preset-pill ${radiusKm === km ? 'active' : ''}`}
-                onClick={() => handleDistancePreset(km)}
+                className={`compact-preset-pill ${radiusKm === km && !showCustomise ? 'active' : ''}`}
+                onClick={() => {
+                  setShowCustomise(false);
+                  handleDistancePreset(km);
+                }}
               >
-                {km} km {radiusKm === km && <Check size={11} className="compact-check-icon" />}
+                {km} km {radiusKm === km && !showCustomise && <Check size={11} className="compact-check-icon" />}
               </button>
             ))}
+
+            {/* Customise Option Button */}
+            <button
+              type="button"
+              className={`compact-preset-pill compact-customise-pill ${showCustomise || ![1, 3, 5].includes(radiusKm) ? 'active' : ''}`}
+              onClick={() => setShowCustomise((prev) => !prev)}
+              title="Click to open custom distance options"
+            >
+              <Sliders size={12} className="compact-customise-icon" />
+              <span>Customise</span>
+              {![1, 3, 5].includes(radiusKm) && (
+                <span className="compact-custom-val">({radiusKm} km)</span>
+              )}
+            </button>
           </div>
 
-          {/* Integrated Manual Stepper & Input in the SAME line */}
-          <div className="compact-manual-stepper">
-            <button
-              type="button"
-              className="compact-step-btn"
-              title="Decrease by 0.5 km"
-              onClick={() => {
-                const next = Math.max(0.5, Math.round((radiusKm - 0.5) * 10) / 10);
-                setRadiusKm(next);
-                setManualInput(String(next));
-              }}
-            >
-              −
-            </button>
-            <input
-              type="number"
-              step="0.1"
-              min="0.5"
-              max="100"
-              value={manualInput}
-              onChange={(e) => setManualInput(e.target.value)}
-              onBlur={handleManualInputApply}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleManualInputApply();
-              }}
-              className="compact-manual-input"
-              placeholder="km"
-              title="Type any distance manually"
-            />
-            <span className="compact-unit-label">km</span>
-            <button
-              type="button"
-              className="compact-step-btn"
-              title="Increase by 0.5 km"
-              onClick={() => {
-                const next = Math.min(100, Math.round((radiusKm + 0.5) * 10) / 10);
-                setRadiusKm(next);
-                setManualInput(String(next));
-              }}
-            >
-              +
-            </button>
-            <button
-              type="button"
-              className="compact-btn-set"
-              onClick={handleManualInputApply}
-              title="Apply manual distance"
-            >
-              Set
-            </button>
-          </div>
+          {/* Customise Panel (2km, 10km, & Manual Input Stepper) */}
+          {showCustomise && (
+            <div className="compact-customise-tray">
+              {/* Additional presets placed inside Customise */}
+              <div className="customise-sub-presets">
+                {[2, 10].map((km) => (
+                  <button
+                    key={km}
+                    type="button"
+                    className={`customise-mini-pill ${radiusKm === km ? 'active' : ''}`}
+                    onClick={() => handleDistancePreset(km)}
+                  >
+                    {km} km {radiusKm === km && '✓'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Manual Stepper & Custom Value */}
+              <div className="compact-manual-stepper">
+                <button
+                  type="button"
+                  className="compact-step-btn"
+                  title="Decrease by 0.5 km"
+                  onClick={() => {
+                    const next = Math.max(0.5, Math.round((radiusKm - 0.5) * 10) / 10);
+                    setRadiusKm(next);
+                    setManualInput(String(next));
+                  }}
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.5"
+                  max="100"
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  onBlur={handleManualInputApply}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleManualInputApply();
+                  }}
+                  className="compact-manual-input"
+                  placeholder="km"
+                  title="Enter custom km"
+                />
+                <span className="compact-unit-label">km</span>
+                <button
+                  type="button"
+                  className="compact-step-btn"
+                  title="Increase by 0.5 km"
+                  onClick={() => {
+                    const next = Math.min(100, Math.round((radiusKm + 0.5) * 10) / 10);
+                    setRadiusKm(next);
+                    setManualInput(String(next));
+                  }}
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="compact-btn-set"
+                  onClick={handleManualInputApply}
+                  title="Apply custom distance"
+                >
+                  Set
+                </button>
+              </div>
+
+              {/* Close Customise Tray */}
+              <button
+                type="button"
+                className="customise-done-btn"
+                onClick={() => setShowCustomise(false)}
+                title="Close Customise"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right side: Compact inline stats */}
