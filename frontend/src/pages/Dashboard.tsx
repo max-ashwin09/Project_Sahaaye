@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReportNeed from './ReportNeed';
+import LiveMap from '../components/LiveMap';
 import {
   LayoutDashboard,
   MapPin,
@@ -436,7 +437,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchLiveNeeds();
-    const interval = setInterval(fetchLiveNeeds, 5000);
+    const interval = setInterval(fetchLiveNeeds, 30000);
     return () => clearInterval(interval);
   }, [fetchLiveNeeds]);
 
@@ -630,59 +631,147 @@ const Dashboard: React.FC = () => {
             <>
               {/* ── HERO BANNER ─────────────────────────────────────────────── */}
               <div className="hero-banner">
+                {/* Hero Text with Original Colors */}
+                <div className="hero-text">
+                  <h1>{currentUser ? `Welcome Back, ${currentUser.name}! 👋` : 'Welcome to SAHAAYE! 🤝'}</h1>
+                  <p>
+                    {currentUser
+                      ? "Small actions create big changes. Let's keep making the difference."
+                      : "Discover local needs, connect with communities, and lend a helping hand across India."}
+                  </p>
+                </div>
 
-            <div className="hero-text">
-              <h1>{currentUser ? `Welcome Back, ${currentUser.name}! 👋` : 'Welcome to SAHAAYE! 🤝'}</h1>
-              <p>
-                {currentUser
-                  ? "Small actions create big changes. Let's keep making the difference."
-                  : "Discover local needs, connect with communities, and lend a helping hand across India."}
-              </p>
-            </div>
-            <div className="hero-illustration">
-              <svg width="220" height="90" viewBox="0 0 220 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Sky */}
-                <rect width="220" height="90" rx="8" fill="url(#skyGrad)" />
-                {/* Mountains */}
-                <polygon points="0,90 40,30 80,90" fill="#a5d6a7" opacity="0.6" />
-                <polygon points="30,90 70,25 110,90" fill="#81c784" opacity="0.5" />
-                {/* Temple */}
-                <rect x="85" y="45" width="50" height="45" fill="#ffcc80" />
-                <polygon points="85,45 110,15 135,45" fill="#ff8a65" />
-                <rect x="95" y="60" width="12" height="30" fill="#e65100" />
-                <rect x="113" y="60" width="12" height="30" fill="#e65100" />
-                <rect x="85" y="35" width="50" height="12" fill="#ff8a65" />
-                {/* Flag */}
-                <line x1="110" y1="15" x2="110" y2="5" stroke="#795548" strokeWidth="1.5" />
-                <polygon points="110,5 120,8 110,11" fill="#f44336" />
-                {/* Trees */}
-                <circle cx="75" cy="60" r="14" fill="#66bb6a" />
-                <rect x="73" y="70" width="4" height="20" fill="#795548" />
-                <circle cx="155" cy="55" r="12" fill="#4caf50" />
-                <rect x="153" y="63" width="4" height="27" fill="#795548" />
-                <circle cx="170" cy="65" r="8" fill="#81c784" />
-                <rect x="168" y="71" width="3" height="19" fill="#795548" />
-                {/* Ground */}
-                <rect x="0" y="83" width="220" height="7" rx="0" fill="#a5d6a7" />
-                {/* Sun */}
-                <circle cx="185" cy="20" r="10" fill="#ffd54f" opacity="0.9" />
-                <circle cx="185" cy="20" r="14" fill="#ffd54f" opacity="0.2" />
-                {/* Clouds */}
-                <ellipse cx="40" cy="15" rx="18" ry="8" fill="white" opacity="0.7" />
-                <ellipse cx="55" cy="12" rx="12" ry="7" fill="white" opacity="0.7" />
-                <ellipse cx="30" cy="13" rx="10" ry="6" fill="white" opacity="0.6" />
-                <defs>
-                  <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#bbdefb" />
-                    <stop offset="100%" stopColor="#e8f5e9" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
-            <div className="hero-quote">
-              <p>Helping people builds stronger communities.</p>
-            </div>
-          </div>
+                {/* Hero Illustration: Only the Grass, Cottages & Nature Landscape Effect */}
+                <div className="hero-illustration">
+                  <svg className="hero-landscape-svg" viewBox="0 0 460 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <linearGradient id="mntGrad1" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#a7f3d0" stopOpacity="0.75" />
+                        <stop offset="100%" stopColor="#d1fae5" stopOpacity="0.1" />
+                      </linearGradient>
+                      <linearGradient id="mntGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.65" />
+                        <stop offset="100%" stopColor="#a7f3d0" stopOpacity="0.1" />
+                      </linearGradient>
+                      <linearGradient id="grassHillBack" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#86efac" />
+                        <stop offset="100%" stopColor="#4ade80" />
+                      </linearGradient>
+                      <linearGradient id="grassHillMid" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6ee7b7" />
+                        <stop offset="100%" stopColor="#10b981" />
+                      </linearGradient>
+                      <linearGradient id="grassHillFore" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#34d399" />
+                        <stop offset="100%" stopColor="#059669" />
+                      </linearGradient>
+                      <linearGradient id="roofGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#fb923c" />
+                        <stop offset="100%" stopColor="#ea580c" />
+                      </linearGradient>
+                      <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fffbeb" />
+                        <stop offset="100%" stopColor="#fef3c7" />
+                      </linearGradient>
+                      <linearGradient id="treeGrad1" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#34d399" />
+                        <stop offset="100%" stopColor="#059669" />
+                      </linearGradient>
+                      <linearGradient id="treeGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" />
+                        <stop offset="100%" stopColor="#047857" />
+                      </linearGradient>
+                      <linearGradient id="sunGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#fde047" />
+                        <stop offset="100%" stopColor="#f59e0b" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Distant Soft Mountains */}
+                    <polygon points="10,140 75,35 155,140" fill="url(#mntGrad1)" />
+                    <polygon points="110,140 185,25 270,140" fill="url(#mntGrad2)" />
+                    <polygon points="230,140 305,45 385,140" fill="url(#mntGrad1)" />
+
+                    {/* Sun & Cloud */}
+                    <circle cx="340" cy="32" r="14" fill="url(#sunGrad)" />
+                    <circle cx="340" cy="32" r="22" fill="#fef08a" opacity="0.35" />
+                    <ellipse cx="260" cy="30" rx="14" ry="6" fill="#ffffff" opacity="0.75" />
+                    <ellipse cx="270" cy="27" rx="10" ry="5" fill="#ffffff" opacity="0.85" />
+
+                    {/* Back Rolling Grass Knolls */}
+                    <path d="M0,140 Q80,95 180,105 Q300,118 410,95 Q440,88 460,92 L460,140 Z" fill="url(#grassHillBack)" opacity="0.65" />
+
+                    {/* Mid Rolling Hills */}
+                    <path d="M-10,140 Q90,110 190,115 Q310,120 370,90 Q420,70 470,85 L470,140 Z" fill="url(#grassHillMid)" opacity="0.85" />
+
+                    {/* Trees Behind House */}
+                    <rect x="175" y="70" width="5" height="35" rx="2" fill="#78350f" />
+                    <ellipse cx="177" cy="65" rx="16" ry="18" fill="url(#treeGrad1)" />
+                    <ellipse cx="173" cy="60" rx="12" ry="14" fill="#6ee7b7" opacity="0.4" />
+
+                    <rect x="295" y="75" width="5" height="30" rx="2" fill="#78350f" />
+                    <ellipse cx="297" cy="70" rx="14" ry="16" fill="url(#treeGrad2)" />
+                    <ellipse cx="294" cy="66" rx="10" ry="12" fill="#34d399" opacity="0.4" />
+
+                    {/* Tall Cypress Style Tree */}
+                    <rect x="365" y="60" width="4" height="45" rx="2" fill="#78350f" />
+                    <path d="M367,25 Q380,45 378,75 Q367,90 356,75 Q354,45 367,25 Z" fill="#059669" />
+                    <path d="M367,28 Q375,45 373,70 Q367,82 361,70 Q360,45 367,28 Z" fill="#10b981" opacity="0.6" />
+
+                    {/* Small Cottage */}
+                    <polygon points="175,85 200,68 225,85" fill="url(#roofGrad)" />
+                    <rect x="180" y="85" width="40" height="26" fill="url(#wallGrad)" />
+                    <rect x="195" y="93" width="10" height="18" rx="1" fill="#b45309" />
+                    <rect x="185" y="90" width="6" height="6" rx="1" fill="#38bdf8" stroke="#0284c7" strokeWidth="0.8" />
+
+                    {/* Main Community Cottage */}
+                    <rect x="240" y="44" width="10" height="15" fill="url(#wallGrad)" />
+                    <polygon points="238,44 245,34 252,44" fill="url(#roofGrad)" />
+                    <line x1="245" y1="34" x2="245" y2="28" stroke="#78350f" strokeWidth="1.5" />
+                    <line x1="242" y1="30" x2="248" y2="30" stroke="#78350f" strokeWidth="1.2" />
+
+                    {/* Main House Roof */}
+                    <polygon points="215,64 245,46 275,64" fill="url(#roofGrad)" />
+                    <polygon points="210,64 245,43 280,64" fill="none" stroke="#ea580c" strokeWidth="1" />
+
+                    {/* Main House Walls */}
+                    <rect x="219" y="64" width="52" height="42" rx="1" fill="url(#wallGrad)" stroke="#fde68a" strokeWidth="0.8" />
+
+                    {/* Door & Windows */}
+                    <rect x="240" y="78" width="11" height="28" rx="2" fill="#b45309" />
+                    <circle cx="249" cy="92" r="1" fill="#fef08a" />
+                    <rect x="224" y="74" width="10" height="10" rx="1" fill="#bae6fd" stroke="#0284c7" strokeWidth="1" />
+                    <line x1="229" y1="74" x2="229" y2="84" stroke="#0284c7" strokeWidth="0.8" />
+                    <line x1="224" y1="79" x2="234" y2="79" stroke="#0284c7" strokeWidth="0.8" />
+                    <rect x="256" y="74" width="10" height="10" rx="1" fill="#bae6fd" stroke="#0284c7" strokeWidth="1" />
+                    <line x1="261" y1="74" x2="261" y2="84" stroke="#0284c7" strokeWidth="0.8" />
+                    <line x1="256" y1="79" x2="266" y2="79" stroke="#0284c7" strokeWidth="0.8" />
+
+                    {/* Foreground Tree Left */}
+                    <rect x="150" y="85" width="6" height="26" rx="2" fill="#78350f" />
+                    <circle cx="153" cy="80" r="18" fill="url(#treeGrad1)" />
+                    <circle cx="148" cy="74" r="12" fill="#6ee7b7" opacity="0.45" />
+
+                    {/* Tree Right */}
+                    <rect x="330" y="85" width="5" height="30" rx="2" fill="#78350f" />
+                    <circle cx="332" cy="78" r="16" fill="url(#treeGrad2)" />
+                    <circle cx="328" cy="72" r="11" fill="#34d399" opacity="0.4" />
+
+                    {/* Foreground Rolling Grass Ridge */}
+                    <path d="M0,140 Q100,122 200,126 Q300,130 380,118 Q420,110 460,115 L460,140 Z" fill="url(#grassHillFore)" />
+
+                    {/* Small Grass Tufts */}
+                    <path d="M120,128 Q122,122 120,118 M122,128 Q125,123 126,119" stroke="#10b981" strokeWidth="1.2" strokeLinecap="round" />
+                    <path d="M210,130 Q212,124 210,120 M212,130 Q215,125 216,121" stroke="#10b981" strokeWidth="1.2" strokeLinecap="round" />
+                    <path d="M310,125 Q312,119 310,115 M312,125 Q315,120 316,116" stroke="#10b981" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                </div>
+
+                {/* Hero Quote Card */}
+                <div className="hero-quote">
+                  <p>Helping people builds stronger communities.</p>
+                </div>
+              </div>
 
           {/* ── ANDROID APP DOWNLOAD CARD ─────────────────────────────────── */}
           <div className="app-download-card">
@@ -779,88 +868,11 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Live Map */}
-            <div className="card map-section">
-              <div className="card-header">
-                <span className="card-title">Live Map</span>
-                <select className="filter-select">
-                  <option>All Categories</option>
-                  <option>Food</option>
-                  <option>Medical</option>
-                  <option>Education</option>
-                  <option>Shelter</option>
-                </select>
-              </div>
-              <div className="map-canvas">
-                {/* Map background */}
-                <div style={{
-                  width: '100%', height: '100%',
-                  background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 40%, #dcedc8 70%, #f1f8e9 100%)',
-                  position: 'relative',
-                }}>
-                  {/* Roads */}
-                  {[25, 50, 75].map(pos => (
-                    <div key={pos} className="map-road-h" style={{ top: `${pos}%` }} />
-                  ))}
-                  {[25, 50, 75].map(pos => (
-                    <div key={pos} className="map-road-v" style={{ left: `${pos}%` }} />
-                  ))}
-
-                  {/* City label */}
-                  <div className="map-city-label">Indore</div>
-
-                  {/* Pulse at center */}
-                  <div className="map-pulse" style={{ top: '50%', left: '50%' }}>
-                    <div className="pulse-ring" />
-                  </div>
-
-                  {/* Pins */}
-                  {MAP_PINS.map((pin, i) => (
-                    <div
-                      key={i}
-                      className="map-pin"
-                      style={{ left: pin.x, top: pin.y, animationDelay: `${pin.delay}s` }}
-                      onClick={() => showToast(`📌 ${pin.emoji} Need at this location`)}
-                    >
-                      <div
-                        className="pin-icon"
-                        style={{ background: pin.color, boxShadow: `0 2px 8px ${pin.color}60` }}
-                      >
-                        <span>{pin.emoji}</span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Controls */}
-                  <div className="map-controls">
-                    {['+', '−', '⊕'].map(ctrl => (
-                      <button
-                        key={ctrl}
-                        className="map-ctrl-btn ripple-container"
-                        onClick={(e) => { addRipple(e); showToast(`Map control: ${ctrl}`); }}
-                      >
-                        {ctrl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="map-legend">
-                {[
-                  { color: '#2563eb', label: 'Food' },
-                  { color: '#e11d48', label: 'Medical' },
-                  { color: '#7c3aed', label: 'Education' },
-                  { color: '#f59e0b', label: 'Shelter' },
-                  { color: '#94a3b8', label: 'Others' },
-                ].map(item => (
-                  <div key={item.label} className="legend-item"
-                    onClick={() => showToast(`Filter: ${item.label}`)}>
-                    <div className="legend-dot" style={{ background: item.color }} />
-                    {item.label}
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Interactive Live Map & Distance Radar */}
+            <LiveMap
+              onToast={showToast}
+              onVolunteer={(need) => showToast(`🤝 Volunteered for: ${need.title}`)}
+            />
 
             {/* Quick Actions + Promo */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
