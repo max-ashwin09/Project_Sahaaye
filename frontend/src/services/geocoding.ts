@@ -188,19 +188,45 @@ export interface ResolvedGPSLocation {
 }
 
 /**
- * Robust Multi-tier Geolocation Resolver:
- * Tier 1: Hardware-accelerated Browser GPS (high accuracy, 4s timeout)
- * Tier 2: Low-accuracy Cellular / WiFi Browser Geolocation (5s timeout)
- * Tier 3: Fast IP-network Geolocation (geojs.io / ipwho.is) - guarantees connection even if browser GPS is blocked/unsupported!
+ * Check browser geolocation permission state
  */
-export async function detectCurrentLocation(): Promise<ResolvedGPSLocation> {
-  // Tier 1: High accuracy browser geolocation
-  if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+export async function getGeolocationPermission(): Promise<PermissionState | 'unsupported'> {
+  if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+    return 'unsupported';
+  }
+  if ('permissions' in navigator && navigator.permissions?.query) {
+    try {
+      const p = await navigator.permissions.query({ name: 'geolocation' });
+      return p.state;
+    } catch {}
+  }
+  return 'prompt';
+}
+
+/**
+ * Robust Geolocation Resolver:
+ * - Attempts real Device GPS first (with 12s timeout to allow user to click "Allow" on browser prompt).
+ * - Only uses IP Geolocation if explicit fallback is allowed, and never mislabels it as hardware GPS.
+ */
+export async function detectCurrentLocation(options?: { allowIpFallback?: boolean }): Promise<ResolvedGPSLocation> {
+  const allowIp = options?.allowIpFallback ?? false;
+
+  // Check browser permission status
+  let permState: PermissionState | 'unsupported' = 'prompt';
+  if (typeof navigator !== 'undefined' && 'permissions' in navigator && navigator.permissions?.query) {
+    try {
+      const p = await navigator.permissions.query({ name: 'geolocation' });
+      permState = p.state;
+    } catch {}
+  }
+
+  // If permission is not blocked, attempt real browser GPS
+  if (typeof navigator !== 'undefined' && 'geolocation' in navigator && permState !== 'denied') {
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
-          timeout: 4000,
+          timeout: 12000,
           maximumAge: 0,
         });
       });
@@ -210,64 +236,53 @@ export async function detectCurrentLocation(): Promise<ResolvedGPSLocation> {
         accuracy: Math.round(pos.coords.accuracy) || 10,
         source: 'gps_high',
       };
-    } catch {
-      // Tier 2: Low-accuracy browser geolocation
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: false,
-            timeout: 5000,
-            maximumAge: 60000,
+    } catch (err: any) {
+      // If user did not deny (e.g. timeout or hardware unavailability), try low-accuracy WiFi/cellular
+      if (err?.code !== 1) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 8000,
+              maximumAge: 60000,
+            });
           });
-        });
-        return {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: Math.round(pos.coords.accuracy) || 30,
-          source: 'gps_low',
-        };
-      } catch {
-        // Proceed to Tier 3 IP Geolocation
+          return {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: Math.round(pos.coords.accuracy) || 30,
+            source: 'gps_low',
+          };
+        } catch {}
       }
     }
   }
 
-  // Tier 3: IP-network Geolocation Fallback
-  try {
-    const res = await fetch('https://get.geojs.io/v1/ip/geo.json', { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      const lat = parseFloat(data.latitude);
-      const lng = parseFloat(data.longitude);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        return {
-          latitude: lat,
-          longitude: lng,
-          accuracy: data.accuracy ? parseInt(data.accuracy, 10) : 50,
-          city: data.city || undefined,
-          state: data.region || undefined,
-          source: 'ip_network',
-        };
+  // If IP fallback is explicitly allowed
+  if (allowIp) {
+    try {
+      const res = await fetch('https://get.geojs.io/v1/ip/geo.json', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        const lat = parseFloat(data.latitude);
+        const lng = parseFloat(data.longitude);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          return {
+            latitude: lat,
+            longitude: lng,
+            accuracy: 5000,
+            city: data.city || undefined,
+            state: data.region || undefined,
+            source: 'ip_network',
+          };
+        }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
-  try {
-    const res2 = await fetch('https://ipwho.is/', { cache: 'no-store' });
-    if (res2.ok) {
-      const data2 = await res2.json();
-      if (data2.success !== false && data2.latitude && data2.longitude) {
-        return {
-          latitude: parseFloat(data2.latitude),
-          longitude: parseFloat(data2.longitude),
-          accuracy: 50,
-          city: data2.city || undefined,
-          state: data2.region || undefined,
-          source: 'ip_network',
-        };
-      }
-    }
-  } catch {}
-
-  throw new Error('All GPS and IP location providers were unreachable.');
+  const error: any = new Error(
+    permState === 'denied' ? 'LOCATION_PERMISSION_DENIED' : 'GPS_ACQUISITION_FAILED'
+  );
+  error.permissionDenied = permState === 'denied';
+  throw error;
 }

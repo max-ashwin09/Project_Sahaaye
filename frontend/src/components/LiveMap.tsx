@@ -253,6 +253,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
   const { location: globalLocation, setLocation: setGlobalLocation } = useSelectedLocation();
   const [isGpsConnected, setIsGpsConnected] = useState<boolean>(false);
+  const [gpsPermissionNotice, setGpsPermissionNotice] = useState<boolean>(false);
 
   // Sync LiveMap when global location changes in the header
   useEffect(() => {
@@ -805,16 +806,17 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
   const handleLocateMe = async () => {
     showControlsTemporarily(2500);
-    if (onToast) onToast('📡 Connecting to live GPS…');
+    setGpsPermissionNotice(false);
+    if (onToast) onToast('📡 Connecting to device GPS… Please allow location if prompted');
 
     try {
-      const pos = await detectCurrentLocation();
+      const pos = await detectCurrentLocation({ allowIpFallback: false });
       const newLat = pos.latitude;
       const newLng = pos.longitude;
 
       setCenterCoords([newLat, newLng]);
 
-      let locName = pos.city ? `${pos.city}${pos.state ? `, ${pos.state}` : ''}` : 'Your Live Location';
+      let locName = 'Your Live Location';
       try {
         const geo = await reverseGeocodeToLocation(newLat, newLng, radiusKm);
         if (geo?.city) {
@@ -830,13 +832,13 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         mapRef.current.flyTo([newLat, newLng], 14, { duration: 1.1 });
       }
 
-      const label = pos.source === 'gps_high' ? 'High-accuracy GPS' : pos.source === 'gps_low' ? 'Network GPS' : 'Live GeoIP';
-      if (onToast) onToast(`📍 GPS Connected: ${locName} (${label} ±${pos.accuracy}m)`);
-    } catch (err) {
-      console.warn('Locate error:', err);
-      setCenterCoords([22.7533, 75.8937]);
-      setCenterName('Vijay Nagar, Indore');
-      if (onToast) onToast('📍 Could not access GPS. Centered at Indore Hub.');
+      const label = pos.source === 'gps_high' ? 'High-accuracy GPS' : 'Network GPS';
+      if (onToast) onToast(`📍 Live GPS Locked: ${locName} (${label} ±${pos.accuracy}m)`);
+    } catch (err: any) {
+      console.warn('Real GPS locate error:', err);
+      setIsGpsConnected(false);
+      setGpsPermissionNotice(true);
+      if (onToast) onToast('⚠️ Location access is needed. Please allow location or select your city.');
     }
   };
 
@@ -849,10 +851,19 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     setSelectedCategory('All');
     setSearchQuery('');
     setActiveNeed(null);
+    setIsGpsConnected(false);
+    setGlobalLocation({
+      city: 'Indore',
+      state: 'Madhya Pradesh',
+      area: 'Vijay Nagar',
+      lat: 22.7533,
+      lng: 75.8937,
+      radiusKm: 3,
+    });
     if (mapRef.current) {
       mapRef.current.flyTo([22.7533, 75.8937], 13, { duration: 0.8 });
     }
-    if (onToast) onToast('📍 Reset center to Vijay Nagar, Indore (3 km radius)');
+    if (onToast) onToast('📍 Reset location to Vijay Nagar, Indore');
   };
 
   const toggleFullscreen = () => {
@@ -1310,6 +1321,156 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
           </label>
         </div>
       </div>
+
+      {/* ── GPS Permission & Location Setup Guide Overlay ── */}
+      {gpsPermissionNotice && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(15, 23, 42, 0.78)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              background: '#ffffff',
+              borderRadius: 18,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              overflow: 'hidden',
+              padding: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              animation: 'scaleIn 0.2s ease-out',
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    color: '#ef4444',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MapPin size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                    GPS अनुमति आवश्यक है
+                  </h3>
+                  <span style={{ fontSize: 12, color: '#64748b' }}>
+                    Location Permission Needed for Live Device GPS
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGpsPermissionNotice(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 4,
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Instruction Steps */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 12,
+                padding: '12px 14px',
+                fontSize: 13,
+                color: '#334155',
+                lineHeight: 1.5,
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 6, color: '#0f172a' }}>
+                अपने डिवाइस की सटीक लोकेशन कैसे कनेक्ट करें:
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                <span style={{ background: '#0d9488', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span>
+                <span>ब्राउज़र के URL बार (ऊपर जहाँ localhost:3000 लिखा है) के बाईं ओर <b>🔒 Lock</b> या <b>🎚️ Tune</b> आइकॉन पर क्लिक करें।</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ background: '#0d9488', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span>
+                <span><b>Location</b> को <b>"Allow" (चालू)</b> करें और नीचे <b>Retry GPS</b> दबाएं।</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                type="button"
+                onClick={handleLocateMe}
+                style={{
+                  padding: '11px 18px',
+                  borderRadius: 10,
+                  background: '#0d9488',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
+                }}
+              >
+                <Crosshair size={16} />
+                <span>पुनः GPS कनेक्ट करें (Retry GPS)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setGpsPermissionNotice(false);
+                  handleResetToIndore();
+                }}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: 10,
+                  background: '#ffffff',
+                  color: '#0d9488',
+                  border: '1.5px solid #0d9488',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                <RotateCcw size={15} />
+                <span>इंदौर हब पर रीसेट करें (Reset to Indore Hub)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

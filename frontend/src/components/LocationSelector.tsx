@@ -76,7 +76,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onToast }) =
     const hasPrompted = sessionStorage.getItem('sahaaye_geo_prompted');
     if (!hasPrompted) {
       sessionStorage.setItem('sahaaye_geo_prompted', 'true');
-      detectCurrentLocation()
+      detectCurrentLocation({ allowIpFallback: false })
         .then(async (pos) => {
           try {
             const detected = await reverseGeocodeToLocation(
@@ -157,13 +157,17 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onToast }) =
     setErrorMessage(null);
 
     try {
-      const pos = await detectCurrentLocation();
+      const pos = await detectCurrentLocation({ allowIpFallback: false });
       const loc = await reverseGeocodeToLocation(pos.latitude, pos.longitude, location.radiusKm);
       setLocation(loc);
-      if (onToast) onToast(`📍 Location updated to ${loc.city}, ${getShortState(loc.state)}`);
+      if (onToast) onToast(`📍 GPS Connected: ${loc.city}, ${getShortState(loc.state)}`);
       setIsOpen(false);
-    } catch {
-      setErrorMessage('Could not connect to GPS or network location. Please select a city above.');
+    } catch (err: any) {
+      if (err?.message === 'LOCATION_PERMISSION_DENIED' || err?.permissionDenied) {
+        setErrorMessage('Location permission blocked. Click the lock/tune icon near URL bar (🔒) and set Location to Allow.');
+      } else {
+        setErrorMessage('Could not get device GPS. Please allow location access or choose your city below.');
+      }
     } finally {
       setIsLocatingUser(false);
     }
