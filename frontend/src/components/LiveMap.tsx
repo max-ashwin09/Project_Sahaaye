@@ -331,19 +331,19 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
     mapRef.current = map;
 
-    // 1. CartoDB Voyager Streets Layer (Crisp highways, roads, building outlines)
+    // 1. OpenStreetMap Standard Streets Layer (100% Free, Zero Watermark, Crisp Highways & Buildings)
     const streetLayer = L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       {
-        subdomains: 'abcd',
+        subdomains: ['a', 'b', 'c'],
         maxZoom: 19,
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
       }
     );
     streetLayerRef.current = streetLayer;
 
-    // 2. ESRI World Imagery Satellite Base Layer (Real satellite rooftops, houses, fields)
+    // 2. ESRI World Imagery Satellite Base Layer (Real satellite rooftops, houses, fields - No API Key Needed)
     const satelliteBaseLayer = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       {
@@ -363,12 +363,12 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     );
     satelliteLabelsLayerRef.current = satelliteLabelsLayer;
 
-    // 4. Standard OpenStreetMap Layer (Terrain/Standard view)
+    // 4. ESRI World Street Map (Alternative Clean City Map)
     const terrainLayer = L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
       {
         maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: 'Tiles &copy; Esri',
       }
     );
     terrainLayerRef.current = terrainLayer;
