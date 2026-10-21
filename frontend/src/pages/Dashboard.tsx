@@ -624,7 +624,10 @@ const Dashboard: React.FC = () => {
               onCancel={() => handleNav('dashboard')}
               onSuccess={() => {
                 showToast('🎉 Need reported and published to community!');
+              }}
+              onViewOnMap={(lat, lng) => {
                 handleNav('dashboard');
+                showToast(`📍 Switched to Live Map at ${lat.toFixed(3)}°, ${lng.toFixed(3)}°`);
               }}
             />
           ) : (

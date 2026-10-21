@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Auth validation helpers
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Rate limit check: handled in Cloud Functions / backend router (max 5 per day)
+    
+    // Needs collection
+    match /needs/{needId} {
+      // Any authenticated or anonymous user can read public need cards
+      allow read: if true;
+      
+      // Creating a need requires user authentication
+      allow create: if isAuthenticated()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.title.size() >= 3
+        && request.resource.data.category is string
+        && request.resource.data.urgency in ['Normal', 'High', 'Critical']
+        && request.resource.data.status == 'Reported';
+        
+      // Status updates are restricted: normal users CANNOT directly edit status or statusHistory
+      allow update: if isAuthenticated() && (
+        // Reporter editing their own reported need before volunteer accepts
+        (resource.data.reporterId == request.auth.uid 
+          && request.resource.data.status == resource.data.status 
+          && request.resource.data.statusHistory == resource.data.statusHistory)
+        ||
+        // Any authenticated user adding their UID to supporters array (Duplicate detection "Support instead")
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['supporters'])
+          && request.resource.data.supporters.hasAll(resource.data.supporters))
+      );
+      
+      // Only the reporter can delete their report while it is still in 'Reported' status
+      allow delete: if isAuthenticated() 
+        && resource.data.reporterId == request.auth.uid 
+        && resource.data.status == 'Reported';
+    }
+    
+    // User profile documents
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+    
+    // Notification feeds
+    match /notifications/{notificationId} {
+      // Users can only read and mark their own notifications as read
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      // Creation is strictly performed via backend Cloud Function triggers (Admin SDK)
+      allow create, delete: if false;
+    }
+  }
+}
