@@ -16,6 +16,10 @@ import {
   Info,
   ChevronRight,
   Filter,
+  Search,
+  ExternalLink,
+  Navigation,
+  X,
 } from 'lucide-react';
 
 export interface NeedItem {
@@ -31,6 +35,19 @@ export interface NeedItem {
   emoji: string;
   color: string;
 }
+
+// ─── Indore Quick Hub Locations ────────────────────────────────────────────────
+const INDORE_HUBS = [
+  { name: 'Vijay Nagar', lat: 22.7533, lng: 75.8937 },
+  { name: 'Rajwada', lat: 22.7196, lng: 75.8577 },
+  { name: 'Palasia', lat: 22.7244, lng: 75.8839 },
+  { name: 'Scheme 54', lat: 22.7584, lng: 75.8890 },
+  { name: 'Bhanwarkua', lat: 22.6891, lng: 75.8647 },
+  { name: 'Khajrana', lat: 22.7303, lng: 75.9080 },
+  { name: 'Annapurna', lat: 22.7012, lng: 75.8362 },
+  { name: 'Super Corridor', lat: 22.7750, lng: 75.8300 },
+  { name: 'Rau', lat: 22.6450, lng: 75.8190 },
+];
 
 // ─── Default Community Needs in Indore ──────────────────────────────────────────
 const INDORE_NEEDS: NeedItem[] = [
@@ -216,12 +233,13 @@ interface LiveMapProps {
 
 export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   // State
-  const [mapType, setMapType] = useState<'streets' | 'satellite'>('streets');
+  const [mapType, setMapType] = useState<'streets' | 'satellite' | 'terrain'>('streets');
   const [centerCoords, setCenterCoords] = useState<[number, number]>([22.7533, 75.8937]); // Default: Vijay Nagar, Indore
   const [centerName, setCenterName] = useState<string>('Vijay Nagar, Indore');
   const [radiusKm, setRadiusKm] = useState<number>(3);
   const [manualInput, setManualInput] = useState<string>('3');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [autoFitBounds, setAutoFitBounds] = useState<boolean>(true);
   const [activeNeed, setActiveNeed] = useState<NeedItem | null>(null);
@@ -230,7 +248,9 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const streetLayerRef = useRef<L.TileLayer | null>(null);
-  const satelliteLayerRef = useRef<L.TileLayer | null>(null);
+  const satelliteBaseLayerRef = useRef<L.TileLayer | null>(null);
+  const satelliteLabelsLayerRef = useRef<L.TileLayer | null>(null);
+  const terrainLayerRef = useRef<L.TileLayer | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
   const centerMarkerRef = useRef<L.Marker | null>(null);
   const needMarkersLayerRef = useRef<L.LayerGroup | null>(null);
@@ -244,8 +264,13 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         if (onToast) onToast(`🤝 Thank you! You offered help for: "${need.title}"`);
       }
     };
+    (window as any).sahaayeSelectNeed = (id: string) => {
+      const need = INDORE_NEEDS.find((n) => n.id === id);
+      if (need) setActiveNeed(need);
+    };
     return () => {
       delete (window as any).sahaayeVolunteerBridge;
+      delete (window as any).sahaayeSelectNeed;
     };
   }, [onVolunteer, onToast]);
 
@@ -261,13 +286,23 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     });
   }, [centerCoords, radiusKm]);
 
-  // Filtered needs by category
+  // Filtered needs by category and search
   const filteredNeeds = useMemo(() => {
-    if (selectedCategory === 'All') return needsWithDistance;
-    return needsWithDistance.filter(
-      (n) => n.category.toLowerCase() === selectedCategory.toLowerCase()
-    );
-  }, [needsWithDistance, selectedCategory]);
+    return needsWithDistance.filter((n) => {
+      const matchesCategory =
+        selectedCategory === 'All' ||
+        n.category.toLowerCase() === selectedCategory.toLowerCase();
+
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        n.title.toLowerCase().includes(q) ||
+        n.location.toLowerCase().includes(q) ||
+        (n.description && n.description.toLowerCase().includes(q));
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [needsWithDistance, selectedCategory, searchQuery]);
 
   const inRangeCount = useMemo(() => {
     return filteredNeeds.filter((n) => n.isInRange).length;
@@ -287,7 +322,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       zoom: 13,
       minZoom: 5,
       maxZoom: 19,
-      zoomControl: false, // Custom Google Maps style zoom buttons
+      zoomControl: false, // Google Maps style zoom buttons
       attributionControl: true,
       touchZoom: true,
       dragging: true,
@@ -296,7 +331,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
     mapRef.current = map;
 
-    // CartoDB Voyager Streets Layer (Crisp highways, roads, building outlines)
+    // 1. CartoDB Voyager Streets Layer (Crisp highways, roads, building outlines)
     const streetLayer = L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
       {
@@ -308,15 +343,35 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     );
     streetLayerRef.current = streetLayer;
 
-    // ESRI World Imagery Satellite Layer (Shows real satellite rooftops, roads & fields)
-    const satelliteLayer = L.tileLayer(
+    // 2. ESRI World Imagery Satellite Base Layer (Real satellite rooftops, houses, fields)
+    const satelliteBaseLayer = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       {
         maxZoom: 19,
         attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye',
       }
     );
-    satelliteLayerRef.current = satelliteLayer;
+    satelliteBaseLayerRef.current = satelliteBaseLayer;
+
+    // 3. ESRI Boundaries & Transportation Overlay Layer (Superimposes named roads & highways onto satellite!)
+    const satelliteLabelsLayer = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 19,
+        pane: 'overlayPane',
+      }
+    );
+    satelliteLabelsLayerRef.current = satelliteLabelsLayer;
+
+    // 4. Standard OpenStreetMap Layer (Terrain/Standard view)
+    const terrainLayer = L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }
+    );
+    terrainLayerRef.current = terrainLayer;
 
     // Default layer: streets
     streetLayer.addTo(map);
@@ -333,7 +388,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     }).addTo(map);
     circleRef.current = circle;
 
-    // Center Pin Marker with pulse halo
+    // Center Pin Marker with radar pulse halo (Google GPS Blue Target)
     const centerIcon = L.divIcon({
       className: 'custom-center-marker-wrap',
       html: `
@@ -352,7 +407,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       zIndexOffset: 1000,
     }).addTo(map);
 
-    centerMarker.bindTooltip('<b>📍 Search Center</b><br/>Drag or click anywhere on map', {
+    centerMarker.bindTooltip('<b>📍 Search Center</b><br/>Drag or click anywhere on map to move', {
       direction: 'top',
       offset: [0, -18],
     });
@@ -391,20 +446,25 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     };
   }, []); // Run once on mount
 
-  // ─── Switch Map Tiles (Streets vs Satellite) ──────────────────────────────────
+  // ─── Switch Map Tiles (Streets vs Satellite Hybrid vs Terrain) ────────────────
   useEffect(() => {
-    if (!mapRef.current || !streetLayerRef.current || !satelliteLayerRef.current) return;
+    if (!mapRef.current) return;
     const map = mapRef.current;
+
+    // Remove existing tile layers
+    if (streetLayerRef.current && map.hasLayer(streetLayerRef.current)) map.removeLayer(streetLayerRef.current);
+    if (satelliteBaseLayerRef.current && map.hasLayer(satelliteBaseLayerRef.current)) map.removeLayer(satelliteBaseLayerRef.current);
+    if (satelliteLabelsLayerRef.current && map.hasLayer(satelliteLabelsLayerRef.current)) map.removeLayer(satelliteLabelsLayerRef.current);
+    if (terrainLayerRef.current && map.hasLayer(terrainLayerRef.current)) map.removeLayer(terrainLayerRef.current);
+
     if (mapType === 'streets') {
-      map.removeLayer(satelliteLayerRef.current);
-      if (!map.hasLayer(streetLayerRef.current)) {
-        streetLayerRef.current.addTo(map);
-      }
-    } else {
-      map.removeLayer(streetLayerRef.current);
-      if (!map.hasLayer(satelliteLayerRef.current)) {
-        satelliteLayerRef.current.addTo(map);
-      }
+      if (streetLayerRef.current) streetLayerRef.current.addTo(map);
+    } else if (mapType === 'satellite') {
+      // Add Satellite base + Road & Place Names on top (Hybrid mode)
+      if (satelliteBaseLayerRef.current) satelliteBaseLayerRef.current.addTo(map);
+      if (satelliteLabelsLayerRef.current) satelliteLabelsLayerRef.current.addTo(map);
+    } else if (mapType === 'terrain') {
+      if (terrainLayerRef.current) terrainLayerRef.current.addTo(map);
     }
   }, [mapType]);
 
@@ -477,7 +537,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             <button class="popup-btn-volunteer" onclick="window.sahaayeVolunteerBridge('${need.id}')">
               🤝 Offer Help
             </button>
-            <a class="popup-btn-gmaps" href="https://www.google.com/maps/dir/?api=1&destination=${need.lat},${need.lng}" target="_blank" rel="noopener noreferrer" title="Get GPS directions">
+            <a class="popup-btn-gmaps" href="https://www.google.com/maps/dir/?api=1&destination=${need.lat},${need.lng}" target="_blank" rel="noopener noreferrer" title="Get GPS directions in Google Maps">
               🧭 Directions
             </a>
           </div>
@@ -523,6 +583,15 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     setManualInput(String(val));
   };
 
+  const handleHubSelect = (hub: { name: string; lat: number; lng: number }) => {
+    setCenterCoords([hub.lat, hub.lng]);
+    setCenterName(`${hub.name}, Indore`);
+    if (mapRef.current) {
+      mapRef.current.flyTo([hub.lat, hub.lng], 14, { duration: 0.8 });
+    }
+    if (onToast) onToast(`📍 Center moved to ${hub.name}!`);
+  };
+
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
       if (onToast) onToast('Geolocation is not supported by your browser');
@@ -555,6 +624,8 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     setRadiusKm(3);
     setManualInput('3');
     setSelectedCategory('All');
+    setSearchQuery('');
+    setActiveNeed(null);
     if (mapRef.current) {
       mapRef.current.flyTo([22.7533, 75.8937], 13, { duration: 0.8 });
     }
@@ -586,16 +657,38 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             <span className="livemap-pulse-text">LIVE RADAR</span>
           </div>
           <div>
-            <h3 className="livemap-main-title">Interactive Street & Distance Map</h3>
+            <h3 className="livemap-main-title">Live Map & Dynamic Distance Radar</h3>
             <p className="livemap-sub-title">
-              Full Google-style pan, zoom & satellite layer with dynamic distance circle
+              Interactive highways, street names & satellite houses with real-time distance circle
             </p>
           </div>
         </div>
 
         {/* View mode toggle & actions */}
         <div className="livemap-header-actions">
-          {/* Map Layer Switcher (Streets vs Satellite) */}
+          {/* Quick Search */}
+          <div className="livemap-search-box">
+            <Search size={14} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search needs / areas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="livemap-search-input"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="clear-search-btn"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Map Layer Switcher (Streets vs Satellite Hybrid vs Terrain) */}
           <div className="livemap-layer-switcher" role="group" aria-label="Map Tile Layers">
             <button
               type="button"
@@ -609,9 +702,17 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
               type="button"
               className={`layer-switch-btn ${mapType === 'satellite' ? 'active' : ''}`}
               onClick={() => setMapType('satellite')}
-              title="Real satellite aerial imagery with actual houses"
+              title="Real satellite aerial imagery with actual houses and road labels"
             >
               🛰️ Satellite
+            </button>
+            <button
+              type="button"
+              className={`layer-switch-btn ${mapType === 'terrain' ? 'active' : ''}`}
+              onClick={() => setMapType('terrain')}
+              title="Standard topographic view"
+            >
+              🏔️ Standard
             </button>
           </div>
 
@@ -643,6 +744,23 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
           >
             {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
+        </div>
+      </div>
+
+      {/* ─── Indore Quick Hub Chips Row ───────────────────────────────────────── */}
+      <div className="livemap-hubs-bar">
+        <span className="hubs-label">📍 Indore Hubs:</span>
+        <div className="hubs-chip-list">
+          {INDORE_HUBS.map((hub) => (
+            <button
+              key={hub.name}
+              type="button"
+              className={`hub-chip-btn ${centerName.includes(hub.name) ? 'active' : ''}`}
+              onClick={() => handleHubSelect(hub)}
+            >
+              {hub.name}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -693,7 +811,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             ))}
           </div>
 
-          {/* Manual Custom Distance Input (Key user requirement!) */}
+          {/* Manual Custom Distance Input */}
           <div className="dist-manual-input-box">
             <span className="manual-label">Manual Custom:</span>
             <div className="input-group-styled">
@@ -826,6 +944,58 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         <div className="livemap-guide-pill">
           <span>👆 <strong>Touch / Drag:</strong> Move map &nbsp;|&nbsp; <strong>Click:</strong> Move circle center &nbsp;|&nbsp; <strong>Pin:</strong> Tap to view details</span>
         </div>
+
+        {/* Active Need Floating Card (If selected) */}
+        {activeNeed && (
+          <div className="livemap-need-drawer">
+            <div className="drawer-header">
+              <div className="drawer-title-row">
+                <span className="drawer-emoji">{activeNeed.emoji}</span>
+                <div>
+                  <h4 className="drawer-title">{activeNeed.title}</h4>
+                  <span className="drawer-sub">
+                    📍 {activeNeed.location} •{' '}
+                    <strong className="dist-accent">
+                      {calculateDistanceKm(centerCoords[0], centerCoords[1], activeNeed.lat, activeNeed.lng)} km away
+                    </strong>
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="drawer-close-btn"
+                onClick={() => setActiveNeed(null)}
+                title="Close preview"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {activeNeed.description && <p className="drawer-desc">{activeNeed.description}</p>}
+
+            <div className="drawer-actions">
+              <button
+                type="button"
+                className="drawer-btn-volunteer"
+                onClick={() => {
+                  if (onVolunteer) onVolunteer(activeNeed);
+                  if (onToast) onToast(`🤝 Thank you for offering help for "${activeNeed.title}"!`);
+                }}
+              >
+                🤝 Offer Help
+              </button>
+              <a
+                className="drawer-btn-gmaps"
+                href={`https://www.google.com/maps/dir/?api=1&destination=${activeNeed.lat},${activeNeed.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Navigation size={13} />
+                Open Directions
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Footer Legend & Info ─────────────────────────────────────────────── */}
