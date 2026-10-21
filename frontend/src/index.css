@@ -591,13 +591,16 @@ body {
 
 .hero-illustration {
   flex-shrink: 0;
-  width: 320px;
-  height: 105px;
+  width: 430px;
+  max-width: 45%;
+  height: 125px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   position: relative;
   z-index: 2;
+  overflow: hidden;
+  border-radius: var(--radius-md);
 }
 
 .hero-landscape-svg {
@@ -728,73 +731,63 @@ body {
 }
 
 /* ─── Hero SVG Animations (Day & Night) ─── */
-.anim-sun-corona {
-  transform-origin: 340px 32px;
-  animation: sun-corona-pulse 3s ease-in-out infinite;
+.anim-sun-bloom {
+  transform-origin: 370px 36px;
+  animation: sun-bloom-breathe 4.5s ease-in-out infinite alternate;
 }
 
-@keyframes sun-corona-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.35; }
-  50% { transform: scale(1.22); opacity: 0.65; }
-}
-
-.anim-sun-rays {
-  transform-origin: 340px 32px;
-  animation: sun-spin 22s linear infinite;
-}
-
-@keyframes sun-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes sun-bloom-breathe {
+  0% { transform: scale(0.95); opacity: 0.65; }
+  100% { transform: scale(1.08); opacity: 0.95; }
 }
 
 .anim-cloud-1 {
-  animation: cloud-float-1 8s ease-in-out infinite alternate;
+  animation: cloud-float-1 12s ease-in-out infinite alternate;
 }
 
 @keyframes cloud-float-1 {
   0% { transform: translateX(0); }
-  100% { transform: translateX(14px); }
+  100% { transform: translateX(18px); }
 }
 
 .anim-cloud-2 {
-  animation: cloud-float-2 10s ease-in-out infinite alternate;
+  animation: cloud-float-2 15s ease-in-out infinite alternate;
 }
 
 @keyframes cloud-float-2 {
   0% { transform: translateX(0); }
-  100% { transform: translateX(-16px); }
+  100% { transform: translateX(-20px); }
 }
 
 .anim-birds {
-  animation: birds-glide 12s linear infinite;
+  animation: birds-glide 16s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes birds-glide {
-  0% { transform: translate(-30px, 8px); opacity: 0; }
-  15% { opacity: 0.8; }
-  85% { opacity: 0.8; }
-  100% { transform: translate(150px, -18px); opacity: 0; }
+  0% { transform: translate(-40px, 12px); opacity: 0; }
+  12% { opacity: 0.85; }
+  85% { opacity: 0.85; }
+  100% { transform: translate(160px, -22px); opacity: 0; }
 }
 
 .anim-tree-sway {
   transform-origin: bottom center;
-  animation: tree-gentle-sway 4s ease-in-out infinite alternate;
+  animation: tree-gentle-sway 4.5s ease-in-out infinite alternate;
 }
 
 @keyframes tree-gentle-sway {
-  0% { transform: rotate(-1.5deg); }
-  100% { transform: rotate(1.5deg); }
+  0% { transform: rotate(-1.2deg); }
+  100% { transform: rotate(1.2deg); }
 }
 
 .anim-moon-halo {
-  transform-origin: 340px 32px;
-  animation: moon-halo-glow 3.5s ease-in-out infinite alternate;
+  transform-origin: 370px 34px;
+  animation: moon-halo-glow 4s ease-in-out infinite alternate;
 }
 
 @keyframes moon-halo-glow {
-  0% { transform: scale(0.95); opacity: 0.25; }
-  100% { transform: scale(1.25); opacity: 0.55; }
+  0% { transform: scale(0.95); opacity: 0.3; }
+  100% { transform: scale(1.18); opacity: 0.65; }
 }
 
 .anim-moon-body {
@@ -850,6 +843,40 @@ body {
 @keyframes smoke-drift {
   0% { transform: translate(0, 0) scale(0.6); opacity: 0.7; }
   100% { transform: translate(12px, -22px) scale(1.4); opacity: 0; }
+}
+
+/* Realistic God Rays / Volumetric Sunbeams */
+.anim-god-rays {
+  transform-origin: 370px 36px;
+  animation: god-rays-pulse 7s ease-in-out infinite alternate;
+}
+
+@keyframes god-rays-pulse {
+  0% { opacity: 0.18; transform: rotate(-1deg) scale(0.98); }
+  100% { opacity: 0.45; transform: rotate(1deg) scale(1.03); }
+}
+
+/* Floating Golden Sun Motes (Day) */
+.anim-sun-mote-1 { animation: mote-float 5s ease-in-out infinite alternate; }
+.anim-sun-mote-2 { animation: mote-float 7s ease-in-out infinite alternate 1.5s; }
+.anim-sun-mote-3 { animation: mote-float 6s ease-in-out infinite alternate 3s; }
+
+@keyframes mote-float {
+  0% { transform: translate(0, 0); opacity: 0.3; }
+  50% { opacity: 0.8; }
+  100% { transform: translate(8px, -12px); opacity: 0.2; }
+}
+
+/* Realistic Night Fireflies */
+.anim-firefly-1 { animation: firefly-bob 4s ease-in-out infinite alternate; }
+.anim-firefly-2 { animation: firefly-bob 5s ease-in-out infinite alternate 1s; }
+.anim-firefly-3 { animation: firefly-bob 6s ease-in-out infinite alternate 2s; }
+.anim-firefly-4 { animation: firefly-bob 4.5s ease-in-out infinite alternate 1.5s; }
+
+@keyframes firefly-bob {
+  0% { transform: translate(0, 0) scale(0.8); opacity: 0.2; }
+  50% { opacity: 1; transform: translate(6px, -8px) scale(1.2); filter: drop-shadow(0 0 5px #bef264); }
+  100% { transform: translate(-5px, -15px) scale(0.7); opacity: 0.3; }
 }
 
 /* ============================================================

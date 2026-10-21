@@ -660,225 +660,361 @@ const Dashboard: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Hero Illustration: Animated Day Sun / Night Moon & Cottages */}
+                {/* Hero Illustration: Realistic Atmospheric Day / Night Landscape */}
                 <div className="hero-illustration">
-                  <svg className="hero-landscape-svg" viewBox="0 0 460 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="hero-landscape-svg" viewBox="0 0 480 140" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs>
-                      <linearGradient id="mntGrad1" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#312e81' : '#a7f3d0'} stopOpacity={isNightMode ? 0.85 : 0.75} />
-                        <stop offset="100%" stopColor={isNightMode ? '#1e1b4b' : '#d1fae5'} stopOpacity={0.1} />
+                      {/* Atmospheric Filters */}
+                      <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+
+                      {/* Mountain Gradients (Aerial Perspective) */}
+                      <linearGradient id="farMntGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#1e1b4b' : '#93c5fd'} stopOpacity={isNightMode ? 0.75 : 0.6} />
+                        <stop offset="100%" stopColor={isNightMode ? '#0f172a' : '#dbeafe'} stopOpacity={0.15} />
                       </linearGradient>
-                      <linearGradient id="mntGrad2" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#1e1b4b' : '#6ee7b7'} stopOpacity={isNightMode ? 0.9 : 0.65} />
-                        <stop offset="100%" stopColor={isNightMode ? '#0f172a' : '#a7f3d0'} stopOpacity={0.1} />
+
+                      <linearGradient id="midMntGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#1e293b' : '#6ee7b7'} stopOpacity={isNightMode ? 0.85 : 0.65} />
+                        <stop offset="100%" stopColor={isNightMode ? '#0f172a' : '#a7f3d0'} stopOpacity={0.2} />
                       </linearGradient>
-                      <linearGradient id="grassHillBack" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#065f46' : '#86efac'} />
-                        <stop offset="100%" stopColor={isNightMode ? '#047857' : '#4ade80'} />
+
+                      <linearGradient id="mistGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#1e1b4b' : '#ffffff'} stopOpacity={isNightMode ? 0.3 : 0.55} />
+                        <stop offset="100%" stopColor={isNightMode ? '#0f172a' : '#e0f2fe'} stopOpacity={0} />
                       </linearGradient>
-                      <linearGradient id="grassHillMid" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#047857' : '#6ee7b7'} />
-                        <stop offset="100%" stopColor={isNightMode ? '#064e3b' : '#10b981'} />
-                      </linearGradient>
-                      <linearGradient id="grassHillFore" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#059669' : '#34d399'} />
+
+                      {/* Rolling Hills Gradients */}
+                      <linearGradient id="hillBackGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#064e3b' : '#34d399'} />
                         <stop offset="100%" stopColor={isNightMode ? '#022c22' : '#059669'} />
                       </linearGradient>
-                      <linearGradient id="roofGrad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#ea580c' : '#fb923c'} />
-                        <stop offset="100%" stopColor={isNightMode ? '#9a3412' : '#ea580c'} />
+
+                      <linearGradient id="hillMidGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#047857' : '#10b981'} />
+                        <stop offset="100%" stopColor={isNightMode ? '#011f18' : '#047857'} />
                       </linearGradient>
-                      <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#fed7aa' : '#fffbeb'} />
-                        <stop offset="100%" stopColor={isNightMode ? '#fdba74' : '#fef3c7'} />
+
+                      <linearGradient id="hillForeGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#059669' : '#059669'} />
+                        <stop offset="100%" stopColor={isNightMode ? '#01150f' : '#022c22'} />
                       </linearGradient>
-                      <linearGradient id="treeGrad1" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#10b981' : '#34d399'} />
-                        <stop offset="100%" stopColor={isNightMode ? '#064e3b' : '#059669'} />
-                      </linearGradient>
-                      <linearGradient id="treeGrad2" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isNightMode ? '#059669' : '#10b981'} />
-                        <stop offset="100%" stopColor={isNightMode ? '#022c22' : '#047857'} />
-                      </linearGradient>
-                      <linearGradient id="sunGrad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#fde047" />
-                        <stop offset="100%" stopColor="#f59e0b" />
-                      </linearGradient>
-                      <radialGradient id="moonGlowGrad" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="#fef08a" stopOpacity="0.8" />
-                        <stop offset="45%" stopColor="#e0e7ff" stopOpacity="0.35" />
-                        <stop offset="100%" stopColor="#312e81" stopOpacity="0" />
+
+                      {/* Day Sun Gradients */}
+                      <radialGradient id="sunBloomGrad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                        <stop offset="35%" stopColor="#fef08a" stopOpacity="0.7" />
+                        <stop offset="70%" stopColor="#fed7aa" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
                       </radialGradient>
+
+                      <linearGradient id="godRayGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
+                        <stop offset="40%" stopColor="#fef08a" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#fed7aa" stopOpacity="0" />
+                      </linearGradient>
+
+                      {/* Cloud Gradients */}
+                      <linearGradient id="cloudGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+                        <stop offset="100%" stopColor="#f1f5f9" stopOpacity="0.35" />
+                      </linearGradient>
+
+                      {/* Night Moon Gradients */}
+                      <radialGradient id="moonAtmosphereGrad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#fef08a" stopOpacity="0.8" />
+                        <stop offset="45%" stopColor="#c7d2fe" stopOpacity="0.35" />
+                        <stop offset="100%" stopColor="#1e1b4b" stopOpacity="0" />
+                      </radialGradient>
+
+                      <linearGradient id="moonCrescentGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#ffffff" />
+                        <stop offset="60%" stopColor="#fef08a" />
+                        <stop offset="100%" stopColor="#fde047" />
+                      </linearGradient>
+
+                      {/* Meteor Trail Gradient */}
                       <linearGradient id="meteorGrad" x1="0" y1="0" x2="1" y2="1">
                         <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
-                        <stop offset="70%" stopColor="#c7d2fe" stopOpacity="0.8" />
+                        <stop offset="75%" stopColor="#c7d2fe" stopOpacity="0.85" />
                         <stop offset="100%" stopColor="#ffffff" stopOpacity="1" />
                       </linearGradient>
+
+                      {/* Architecture Gradients */}
+                      <linearGradient id="hubRoofGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#334155' : '#475569'} />
+                        <stop offset="100%" stopColor={isNightMode ? '#1e293b' : '#334155'} />
+                      </linearGradient>
+
+                      <linearGradient id="hubWallGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#1e293b' : '#f8fafc'} />
+                        <stop offset="100%" stopColor={isNightMode ? '#0f172a' : '#e2e8f0'} />
+                      </linearGradient>
+
+                      <linearGradient id="cabinRoofGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#7c2d12' : '#c2410c'} />
+                        <stop offset="100%" stopColor={isNightMode ? '#431407' : '#9a3412'} />
+                      </linearGradient>
+
+                      <linearGradient id="cabinWallGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isNightMode ? '#334155' : '#fef3c7'} />
+                        <stop offset="100%" stopColor={isNightMode ? '#1e293b' : '#fde68a'} />
+                      </linearGradient>
+
+                      {/* Night Window Cast Light onto Ground */}
+                      <linearGradient id="groundLightSpillGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fde047" stopOpacity="0.45" />
+                        <stop offset="100%" stopColor="#047857" stopOpacity="0" />
+                      </linearGradient>
+
+                      {/* Botanical Pine Tree Template Def */}
+                      <g id="pineTree">
+                        <path d="M0,-24 L3,-19 L1.5,-19 L4.5,-13 L2.2,-13 L6.5,-6 L3.2,-6 L8,2 L-8,2 L-3.2,-6 L-6.5,-6 L-2.2,-13 L-4.5,-13 L-1.5,-19 L-3,-19 Z" />
+                        <rect x="-1" y="2" width="2" height="4" fill="#451a03" />
+                      </g>
                     </defs>
 
-                    {/* Distant Soft Mountains */}
-                    <polygon points="10,140 75,35 155,140" fill="url(#mntGrad1)" />
-                    <polygon points="110,140 185,25 270,140" fill="url(#mntGrad2)" />
-                    <polygon points="230,140 305,45 385,140" fill="url(#mntGrad1)" />
+                    {/* ─── LAYER 1: Distant Atmospheric Mountain Ridges (Natural Contours) ─── */}
+                    <path
+                      d="M-10,140 L-10,72 Q35,66 70,52 Q115,36 150,48 Q190,62 230,42 Q265,24 305,34 Q345,44 380,28 Q420,12 455,26 Q475,34 490,30 L490,140 Z"
+                      fill="url(#farMntGrad)"
+                    />
 
-                    {/* ─── DAY SKY ELEMENTS: Sun with Rotating Ray Spokes, Pulsing Aura, Drifting Clouds & Birds ─── */}
+                    {/* Horizontal Atmosphere / Valley Mist Band */}
+                    <path
+                      d="M-10,140 L-10,76 Q100,68 200,74 Q300,78 400,68 L490,72 L490,140 Z"
+                      fill="url(#mistGrad)"
+                    />
+
+                    {/* Mid-Distance Mountain Ridge */}
+                    <path
+                      d="M-10,140 L-10,88 Q45,78 95,84 Q145,90 190,76 Q240,62 285,70 Q335,78 380,60 Q430,44 490,64 L490,140 Z"
+                      fill="url(#midMntGrad)"
+                    />
+
+                    {/* ─── LAYER 2: DAY SKY (Realistic Sun Bloom, Volumetric Rays, Strata Clouds & Birds) ─── */}
                     {!isNightMode && (
                       <g className="day-sky-group">
-                        {/* Sun Corona Glow */}
-                        <circle cx="340" cy="32" r="24" fill="#fef08a" className="anim-sun-corona" />
-
-                        {/* Rotating Sunrays */}
-                        <g className="anim-sun-rays">
-                          <line x1="340" y1="12" x2="340" y2="6" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
-                          <line x1="340" y1="52" x2="340" y2="58" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
-                          <line x1="320" y1="32" x2="314" y2="32" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
-                          <line x1="360" y1="32" x2="366" y2="32" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
-                          <line x1="326" y1="18" x2="322" y2="14" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
-                          <line x1="354" y1="46" x2="358" y2="50" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
-                          <line x1="354" y1="18" x2="358" y2="14" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
-                          <line x1="326" y1="46" x2="322" y2="50" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
+                        {/* Volumetric Sunbeams / God Rays */}
+                        <g className="anim-god-rays">
+                          <polygon points="370,36 280,140 325,140" fill="url(#godRayGrad)" />
+                          <polygon points="370,36 355,140 405,140" fill="url(#godRayGrad)" />
+                          <polygon points="370,36 430,140 475,140" fill="url(#godRayGrad)" />
                         </g>
 
-                        {/* Sun Core Disc */}
-                        <circle cx="340" cy="32" r="14" fill="url(#sunGrad)" />
+                        {/* Outer Atmospheric Sun Bloom */}
+                        <circle cx="370" cy="36" r="38" fill="url(#sunBloomGrad)" className="anim-sun-bloom" />
 
-                        {/* Drifting Clouds */}
+                        {/* Radiant Sun Disc */}
+                        <circle cx="370" cy="36" r="13" fill="#ffffff" filter="url(#softGlow)" />
+                        <circle cx="370" cy="36" r="11" fill="#fef08a" />
+
+                        {/* Floating Golden Sun Motes */}
+                        <circle cx="345" cy="56" r="1.5" fill="#fef08a" className="anim-sun-mote-1" />
+                        <circle cx="325" cy="78" r="1.2" fill="#fed7aa" className="anim-sun-mote-2" />
+                        <circle cx="390" cy="68" r="1.4" fill="#ffffff" className="anim-sun-mote-3" />
+
+                        {/* Realistic Strata Clouds */}
                         <g className="anim-cloud-1">
-                          <ellipse cx="260" cy="30" rx="14" ry="6" fill="#ffffff" opacity="0.85" />
-                          <ellipse cx="270" cy="27" rx="10" ry="5" fill="#ffffff" opacity="0.9" />
+                          <path
+                            d="M200,34 C212,26 232,25 246,31 C256,23 276,24 286,32 C296,29 308,33 312,39 C312,41 200,41 200,34 Z"
+                            fill="url(#cloudGrad)"
+                          />
                         </g>
                         <g className="anim-cloud-2">
-                          <ellipse cx="150" cy="22" rx="13" ry="5" fill="#ffffff" opacity="0.75" />
-                          <ellipse cx="158" cy="19" rx="9" ry="4" fill="#ffffff" opacity="0.85" />
+                          <path
+                            d="M85,24 C95,18 110,17 122,22 C130,16 148,16 156,23 C164,20 174,23 176,28 C176,30 85,30 85,24 Z"
+                            fill="url(#cloudGrad)"
+                          />
                         </g>
 
-                        {/* Soaring Birds */}
+                        {/* Soaring Gliding Birds Formation */}
                         <g className="anim-birds">
-                          <path d="M120,24 Q124,19 128,24 Q132,19 136,24" stroke="#475569" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-                          <path d="M136,17 Q139,13 142,17 Q145,13 148,17" stroke="#475569" strokeWidth="1" fill="none" strokeLinecap="round" />
+                          <path d="M0,4 Q4,-1 8,3 Q12,-1 16,4 Q12,1 8,2 Q4,1 0,4 Z" fill="#334155" opacity="0.85" />
+                          <path d="M18,9 Q21,5 24,8 Q27,5 30,9 Q27,7 24,7.5 Q21,7 18,9 Z" fill="#475569" opacity="0.75" />
+                          <path d="M-12,10 Q-9,6 -6,9 Q-3,6 0,10 Q-3,8 -6,8.5 Q-9,8 -12,10 Z" fill="#475569" opacity="0.75" />
                         </g>
                       </g>
                     )}
 
-                    {/* ─── NIGHT SKY ELEMENTS: Stars, Shooting Meteor & Luminous Crescent Moon ─── */}
+                    {/* ─── LAYER 2: NIGHT SKY (Luminous Moon, Micro-Starfield, Meteor & Fireflies) ─── */}
                     {isNightMode && (
                       <g className="night-sky-group">
-                        {/* Twinkling Stars */}
-                        <circle cx="50" cy="24" r="1.4" fill="#ffffff" className="anim-star-1" />
-                        <circle cx="95" cy="15" r="1.8" fill="#fde047" className="anim-star-2" />
-                        <circle cx="140" cy="26" r="1.3" fill="#ffffff" className="anim-star-3" />
-                        <circle cx="190" cy="18" r="1.9" fill="#c7d2fe" className="anim-star-4" />
-                        <circle cx="230" cy="12" r="1.4" fill="#ffffff" className="anim-star-5" />
-                        <circle cx="270" cy="22" r="1.7" fill="#fde047" className="anim-star-6" />
-                        <circle cx="395" cy="18" r="1.5" fill="#ffffff" className="anim-star-7" />
+                        {/* Astronomical Micro-Starfield */}
+                        <g className="starfield">
+                          <circle cx="45" cy="18" r="0.8" fill="#ffffff" className="anim-star-1" />
+                          <circle cx="78" cy="32" r="1.2" fill="#fef08a" className="anim-star-2" />
+                          <circle cx="115" cy="14" r="0.9" fill="#c7d2fe" className="anim-star-3" />
+                          <circle cx="138" cy="28" r="0.7" fill="#ffffff" className="anim-star-4" />
+                          <circle cx="165" cy="12" r="1.3" fill="#fef08a" className="anim-star-5" />
+                          <circle cx="195" cy="26" r="0.8" fill="#e0e7ff" className="anim-star-6" />
+                          <circle cx="225" cy="15" r="1.1" fill="#ffffff" className="anim-star-7" />
+                          <circle cx="255" cy="22" r="0.7" fill="#a5f3fc" className="anim-star-1" />
+                          <circle cx="282" cy="14" r="1.2" fill="#fef08a" className="anim-star-3" />
+                          <circle cx="310" cy="26" r="0.8" fill="#ffffff" className="anim-star-2" />
+                          <circle cx="420" cy="16" r="1.1" fill="#e0e7ff" className="anim-star-5" />
+                          <circle cx="445" cy="28" r="0.7" fill="#fef08a" className="anim-star-4" />
+                          <circle cx="462" cy="14" r="1.0" fill="#ffffff" className="anim-star-6" />
+                        </g>
 
-                        {/* Shooting Star Meteor Streak */}
+                        {/* Swift Meteor Streak */}
                         <g className="anim-meteor">
-                          <line x1="80" y1="8" x2="110" y2="26" stroke="url(#meteorGrad)" strokeWidth="1.5" strokeLinecap="round" />
-                          <circle cx="110" cy="26" r="1.5" fill="#ffffff" />
+                          <line x1="85" y1="10" x2="130" y2="30" stroke="url(#meteorGrad)" strokeWidth="1.6" strokeLinecap="round" />
+                          <circle cx="130" cy="30" r="1.2" fill="#ffffff" />
                         </g>
 
                         {/* Luminous Lunar Halo */}
-                        <circle cx="340" cy="32" r="24" fill="url(#moonGlowGrad)" className="anim-moon-halo" />
+                        <circle cx="370" cy="34" r="32" fill="url(#moonAtmosphereGrad)" className="anim-moon-halo" />
 
-                        {/* Glowing Crescent Moon */}
-                        <g className="anim-moon-body">
-                          <circle cx="340" cy="32" r="14" fill="#fef08a" />
-                          <circle cx="345" cy="28" r="12" fill="#111827" />
-                        </g>
+                        {/* Earthshine (Spherical outline of dark moon) */}
+                        <circle cx="370" cy="34" r="14" fill="#1e1b4b" opacity="0.35" stroke="#312e81" strokeWidth="0.5" />
 
-                        {/* Smoke Puffs from Cottage Chimney */}
-                        <circle cx="245" cy="22" r="2.5" fill="#cbd5e1" className="anim-smoke-puff-1" />
-                        <circle cx="245" cy="22" r="3" fill="#e2e8f0" className="anim-smoke-puff-2" />
+                        {/* Realistic Crescent Moon Body */}
+                        <path
+                          d="M370,20 C377.7,20 384,26.3 384,34 C384,41.7 377.7,48 370,48 C375.5,43 378,38.5 378,34 C378,29.5 375.5,25 370,20 Z"
+                          fill="url(#moonCrescentGrad)"
+                          filter="url(#softGlow)"
+                          className="anim-moon-body"
+                        />
+
+                        {/* Chimney Warm Dissipating Smoke Puffs */}
+                        <circle cx="266" cy="46" r="2.2" fill="#94a3b8" className="anim-smoke-puff-1" />
+                        <circle cx="266" cy="46" r="2.8" fill="#cbd5e1" className="anim-smoke-puff-2" />
                       </g>
                     )}
 
-                    {/* Back Rolling Grass Knolls */}
-                    <path d="M0,140 Q80,95 180,105 Q300,118 410,95 Q440,88 460,92 L460,140 Z" fill="url(#grassHillBack)" opacity="0.75" />
+                    {/* ─── LAYER 3: Back Rolling Ridge & Distant Tree Silhouettes ─── */}
+                    <path
+                      d="M-10,140 L-10,100 Q80,90 180,96 Q280,102 380,86 Q430,78 490,84 L490,140 Z"
+                      fill="url(#hillBackGrad)"
+                      opacity="0.85"
+                    />
 
-                    {/* Mid Rolling Hills */}
-                    <path d="M-10,140 Q90,110 190,115 Q310,120 370,90 Q420,70 470,85 L470,140 Z" fill="url(#grassHillMid)" opacity="0.88" />
-
-                    {/* Trees Behind House */}
-                    <rect x="175" y="70" width="5" height="35" rx="2" fill="#78350f" />
-                    <ellipse cx="177" cy="65" rx="16" ry="18" fill="url(#treeGrad1)" />
-                    <ellipse cx="173" cy="60" rx="12" ry="14" fill={isNightMode ? '#059669' : '#6ee7b7'} opacity="0.4" />
-
-                    <rect x="295" y="75" width="5" height="30" rx="2" fill="#78350f" />
-                    <ellipse cx="297" cy="70" rx="14" ry="16" fill="url(#treeGrad2)" />
-                    <ellipse cx="294" cy="66" rx="10" ry="12" fill={isNightMode ? '#047857' : '#34d399'} opacity="0.4" />
-
-                    {/* Tall Cypress Style Tree with Gentle Sway */}
-                    <g className="anim-tree-sway">
-                      <rect x="365" y="60" width="4" height="45" rx="2" fill="#78350f" />
-                      <path d="M367,25 Q380,45 378,75 Q367,90 356,75 Q354,45 367,25 Z" fill={isNightMode ? '#047857' : '#059669'} />
-                      <path d="M367,28 Q375,45 373,70 Q367,82 361,70 Q360,45 367,28 Z" fill={isNightMode ? '#065f46' : '#10b981'} opacity="0.6" />
+                    {/* Distant Realistic Pine Trees on Crest */}
+                    <g fill={isNightMode ? '#022c22' : '#047857'} opacity="0.8">
+                      <use href="#pineTree" transform="translate(138, 92) scale(0.65)" />
+                      <use href="#pineTree" transform="translate(152, 90) scale(0.75)" />
+                      <use href="#pineTree" transform="translate(315, 84) scale(0.68)" />
+                      <use href="#pineTree" transform="translate(330, 82) scale(0.8)" />
+                      <use href="#pineTree" transform="translate(345, 85) scale(0.62)" />
+                      <use href="#pineTree" transform="translate(435, 78) scale(0.75)" />
                     </g>
 
-                    {/* Small Cottage */}
-                    <polygon points="175,85 200,68 225,85" fill="url(#roofGrad)" />
-                    <rect x="180" y="85" width="40" height="26" fill="url(#wallGrad)" />
-                    <rect x="195" y="93" width="10" height="18" rx="1" fill="#b45309" />
+                    {/* Midground Rolling Green Ridge */}
+                    <path
+                      d="M-10,140 L-10,112 Q90,102 190,108 Q290,112 370,98 Q430,90 490,100 L490,140 Z"
+                      fill="url(#hillMidGrad)"
+                    />
+
+                    {/* Midground Pine Trees Group Left */}
+                    <g fill={isNightMode ? '#011f18' : '#065f46'}>
+                      <use href="#pineTree" transform="translate(110, 106) scale(0.9)" />
+                      <use href="#pineTree" transform="translate(126, 102) scale(1.1)" />
+                    </g>
+
+                    {/* ─── LAYER 4: ARCHITECTURE (SAHAAYE Community Hub & Clinic) ─── */}
+                    {/* Secondary Cottage / Clinic Annex */}
+                    <polygon points="167,86 190,72 213,86" fill="url(#cabinRoofGrad)" />
+                    <rect x="172" y="86" width="36" height="26" rx="1" fill="url(#cabinWallGrad)" />
+                    <rect x="193" y="93" width="9" height="19" rx="1" fill="#78350f" />
+                    {/* Cabin Window */}
                     <rect
-                      x="185" y="90" width="6" height="6" rx="1"
-                      fill={isNightMode ? '#fef08a' : '#38bdf8'}
-                      stroke={isNightMode ? '#f59e0b' : '#0284c7'}
+                      x="178" y="91" width="10" height="10" rx="1"
+                      fill={isNightMode ? '#fef08a' : '#bae6fd'}
+                      stroke={isNightMode ? '#f59e0b' : '#38bdf8'}
                       strokeWidth="0.8"
                       className={isNightMode ? 'anim-night-window' : ''}
                     />
+                    <line x1="183" y1="91" x2="183" y2="101" stroke={isNightMode ? '#d97706' : '#38bdf8'} strokeWidth="0.6" />
+                    <line x1="178" y1="96" x2="188" y2="96" stroke={isNightMode ? '#d97706' : '#38bdf8'} strokeWidth="0.6" />
 
-                    {/* Main Community Cottage */}
-                    <rect x="240" y="44" width="10" height="15" fill="url(#wallGrad)" />
-                    <polygon points="238,44 245,34 252,44" fill="url(#roofGrad)" />
-                    <line x1="245" y1="34" x2="245" y2="28" stroke="#78350f" strokeWidth="1.5" />
-                    <line x1="242" y1="30" x2="248" y2="30" stroke="#78350f" strokeWidth="1.2" />
+                    {/* Night Window Cast Light Spill onto Lawn */}
+                    {isNightMode && (
+                      <polygon points="226,102 210,128 285,128 274,102" fill="url(#groundLightSpillGrad)" />
+                    )}
 
-                    {/* Main House Roof */}
-                    <polygon points="215,64 245,46 275,64" fill="url(#roofGrad)" />
-                    <polygon points="210,64 245,43 280,64" fill="none" stroke="#ea580c" strokeWidth="1" />
-
-                    {/* Main House Walls */}
-                    <rect x="219" y="64" width="52" height="42" rx="1" fill="url(#wallGrad)" stroke="#fde68a" strokeWidth="0.8" />
-
-                    {/* Door & Windows */}
-                    <rect x="240" y="78" width="11" height="28" rx="2" fill="#b45309" />
-                    <circle cx="249" cy="92" r="1" fill="#fef08a" />
+                    {/* Main SAHAAYE Community Relief Center / Dispatch Hub */}
+                    {/* Chimney */}
+                    <rect x="264" y="52" width="6" height="12" rx="1" fill={isNightMode ? '#1e293b' : '#64748b'} />
+                    {/* Modern Architectural Roof with Overhang Eaves */}
+                    <polygon points="214,78 248,56 282,78" fill="url(#hubRoofGrad)" />
+                    <line x1="212" y1="78" x2="284" y2="78" stroke={isNightMode ? '#0f172a' : '#1e293b'} strokeWidth="1.5" />
+                    {/* Hub Walls */}
                     <rect
-                      x="224" y="74" width="10" height="10" rx="1"
+                      x="220" y="78" width="56" height="34" rx="1"
+                      fill="url(#hubWallGrad)"
+                      stroke={isNightMode ? '#334155' : '#cbd5e1'}
+                      strokeWidth="0.8"
+                    />
+
+                    {/* Emergency / Community Cross Emblem on Hub Gable */}
+                    <rect x="246" y="65" width="4" height="7" rx="0.5" fill="#ef4444" />
+                    <rect x="244.5" y="66.5" width="7" height="4" rx="0.5" fill="#ef4444" />
+
+                    {/* Hub Entrance Door */}
+                    <rect x="248" y="87" width="12" height="25" rx="1.5" fill={isNightMode ? '#0f172a' : '#334155'} />
+                    <circle cx="257" cy="99" r="0.9" fill="#fde047" />
+
+                    {/* Left Architectural Paned Window */}
+                    <rect
+                      x="226" y="86" width="16" height="15" rx="1"
                       fill={isNightMode ? '#fef08a' : '#bae6fd'}
-                      stroke={isNightMode ? '#f59e0b' : '#0284c7'}
+                      stroke={isNightMode ? '#f59e0b' : '#38bdf8'}
                       strokeWidth="1"
                       className={isNightMode ? 'anim-night-window' : ''}
                     />
-                    <line x1="229" y1="74" x2="229" y2="84" stroke={isNightMode ? '#d97706' : '#0284c7'} strokeWidth="0.8" />
-                    <line x1="224" y1="79" x2="234" y2="79" stroke={isNightMode ? '#d97706' : '#0284c7'} strokeWidth="0.8" />
+                    <line x1="234" y1="86" x2="234" y2="101" stroke={isNightMode ? '#d97706' : '#0284c7'} strokeWidth="0.8" />
+                    <line x1="226" y1="93.5" x2="242" y2="93.5" stroke={isNightMode ? '#d97706' : '#0284c7'} strokeWidth="0.8" />
+
+                    {/* Right Paned Window */}
                     <rect
-                      x="256" y="74" width="10" height="10" rx="1"
+                      x="266" y="88" width="8" height="13" rx="1"
                       fill={isNightMode ? '#fef08a' : '#bae6fd'}
-                      stroke={isNightMode ? '#f59e0b' : '#0284c7'}
+                      stroke={isNightMode ? '#f59e0b' : '#38bdf8'}
                       strokeWidth="1"
                       className={isNightMode ? 'anim-night-window' : ''}
                     />
-                    <line x1="261" y1="74" x2="261" y2="84" stroke={isNightMode ? '#d97706' : '#0284c7'} strokeWidth="0.8" />
-                    <line x1="256" y1="79" x2="266" y2="79" stroke={isNightMode ? '#d97706' : '#0284c7'} strokeWidth="0.8" />
+                    <line x1="266" y1="94.5" x2="274" y2="94.5" stroke={isNightMode ? '#d97706' : '#0284c7'} strokeWidth="0.8" />
 
-                    {/* Foreground Tree Left */}
-                    <rect x="150" y="85" width="6" height="26" rx="2" fill="#78350f" />
-                    <circle cx="153" cy="80" r="18" fill="url(#treeGrad1)" />
-                    <circle cx="148" cy="74" r="12" fill={isNightMode ? '#047857' : '#6ee7b7'} opacity="0.45" />
+                    {/* Midground Tall Evergreen Pine Right of Hub */}
+                    <g fill={isNightMode ? '#011f18' : '#065f46'} className="anim-tree-sway">
+                      <use href="#pineTree" transform="translate(305, 96) scale(1.15)" />
+                    </g>
 
-                    {/* Tree Right */}
-                    <rect x="330" y="85" width="5" height="30" rx="2" fill="#78350f" />
-                    <circle cx="332" cy="78" r="16" fill="url(#treeGrad2)" />
-                    <circle cx="328" cy="72" r="11" fill={isNightMode ? '#064e3b' : '#34d399'} opacity="0.4" />
+                    {/* ─── LAYER 5: Foreground Rolling Ridge & Framing Pines ─── */}
+                    <path
+                      d="M-10,140 L-10,126 Q100,118 200,122 Q300,126 390,116 Q440,112 490,120 L490,140 Z"
+                      fill="url(#hillForeGrad)"
+                    />
 
-                    {/* Foreground Rolling Grass Ridge */}
-                    <path d="M0,140 Q100,122 200,126 Q300,130 380,118 Q420,110 460,115 L460,140 Z" fill="url(#grassHillFore)" />
+                    {/* Tall Foreground Botanical Pines (Framing) */}
+                    <g fill={isNightMode ? '#01150f' : '#047857'}>
+                      <use href="#pineTree" transform="translate(90, 116) scale(1.4)" />
+                      <use href="#pineTree" transform="translate(390, 112) scale(1.3)" />
+                      <use href="#pineTree" transform="translate(415, 118) scale(1.1)" />
+                    </g>
 
-                    {/* Small Grass Tufts */}
-                    <path d="M120,128 Q122,122 120,118 M122,128 Q125,123 126,119" stroke={isNightMode ? '#059669' : '#10b981'} strokeWidth="1.2" strokeLinecap="round" />
-                    <path d="M210,130 Q212,124 210,120 M212,130 Q215,125 216,121" stroke={isNightMode ? '#059669' : '#10b981'} strokeWidth="1.2" strokeLinecap="round" />
-                    <path d="M310,125 Q312,119 310,115 M312,125 Q315,120 316,116" stroke={isNightMode ? '#059669' : '#10b981'} strokeWidth="1.2" strokeLinecap="round" />
+                    {/* Grass Tufts on Foreground Ridge */}
+                    <g stroke={isNightMode ? '#065f46' : '#10b981'} strokeWidth="1.2" strokeLinecap="round">
+                      <path d="M140,125 Q142,119 140,115 M142,125 Q145,120 146,116" />
+                      <path d="M210,126 Q212,120 210,116 M212,126 Q215,121 216,117" />
+                      <path d="M330,122 Q332,116 330,112 M332,122 Q335,117 336,113" />
+                    </g>
+
+                    {/* Bioluminescent Night Fireflies */}
+                    {isNightMode && (
+                      <g className="night-fireflies">
+                        <circle cx="160" cy="115" r="1.5" fill="#bef264" className="anim-firefly-1" />
+                        <circle cx="210" cy="122" r="1.2" fill="#fde047" className="anim-firefly-2" />
+                        <circle cx="295" cy="118" r="1.4" fill="#a3e635" className="anim-firefly-3" />
+                        <circle cx="340" cy="125" r="1.3" fill="#bef264" className="anim-firefly-4" />
+                      </g>
+                    )}
                   </svg>
                 </div>
 
