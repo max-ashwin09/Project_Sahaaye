@@ -77,7 +77,7 @@ export const TRANSLATIONS = {
 
     // Duplicate Modal
     duplicateDetectedTitle: 'Similar Need Already Reported Nearby!',
-    duplicateSubtitle: 'We found an active need in the same category within 200 meters:',
+    duplicateSubtitle: 'We found an active need in the same category within 300 meters:',
     duplicateSupportBtn: '🤝 Support Existing Need Instead',
     duplicateProceedBtn: '📝 Report Anyway (Separate Need)',
 
@@ -161,7 +161,7 @@ export const TRANSLATIONS = {
 
     // Duplicate Modal
     duplicateDetectedTitle: 'नजदीक में मिलती-जुलती ज़रूरत पहले से दर्ज है!',
-    duplicateSubtitle: '200 मीटर के दायरे में इस श्रेणी की खुली ज़रूरत सक्रिय है:',
+    duplicateSubtitle: '300 मीटर के दायरे में इस श्रेणी की खुली ज़रूरत सक्रिय है:',
     duplicateSupportBtn: '🤝 इस मौजूदा ज़रूरत का समर्थन करें',
     duplicateProceedBtn: '📝 अलग ज़रूरत के रूप में दर्ज करें',
 

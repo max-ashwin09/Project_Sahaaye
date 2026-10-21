@@ -51,10 +51,10 @@ export function useDuplicateCheck() {
     ): Promise<DuplicateNeedMatch | null> => {
       setIsChecking(true);
       try {
-        // Query backend needs within 200m radius
+        // Query backend needs within 300m radius
         const url = `${API_BASE}/needs/duplicates?lat=${lat}&lng=${lng}&category=${encodeURIComponent(
           category
-        )}&radiusMeters=200&days=7`;
+        )}&radiusMeters=300&days=7`;
 
         const res = await fetch(url, { credentials: 'include' });
         if (res.ok) {

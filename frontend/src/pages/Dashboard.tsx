@@ -19,6 +19,22 @@ import {
   LogIn,
   Smartphone,
   ArrowDownToLine,
+  Users,
+  Clock,
+  CheckCircle2,
+  Star,
+  Compass,
+  Heart,
+  HandHeart,
+  HeartHandshake,
+  Building2,
+  Utensils,
+  HeartPulse,
+  BookOpen,
+  Shirt,
+  Droplets,
+  Home,
+  HelpCircle,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -33,7 +49,7 @@ interface StatCard {
   id: string;
   value: string | number;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   iconBg: string;
   color: string;
   trend: string;
@@ -58,7 +74,7 @@ interface QuickAction {
   id: string;
   label: string;
   sub: string;
-  icon: string;
+  icon: React.ReactNode;
   bg: string;
   iconBg: string;
 }
@@ -77,6 +93,33 @@ interface DonutSegment {
   color: string;
 }
 
+// Category monochrome icon helper
+export function getCategoryIcon(cat: string, size = 18, color = 'currentColor') {
+  const c = cat.toLowerCase();
+  if (c.includes('food') || c.includes('ration') || c.includes('meal')) {
+    return <Utensils size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('med') || c.includes('health') || c.includes('insulin')) {
+    return <HeartPulse size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('edu') || c.includes('school') || c.includes('book')) {
+    return <BookOpen size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('elder') || c.includes('care') || c.includes('senior')) {
+    return <HeartHandshake size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('shelt') || c.includes('rain') || c.includes('house') || c.includes('tarpaulin')) {
+    return <Home size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('water') || c.includes('drink')) {
+    return <Droplets size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('cloth') || c.includes('blanket') || c.includes('winter')) {
+    return <Shirt size={size} strokeWidth={1.8} color={color} />;
+  }
+  return <HelpCircle size={size} strokeWidth={1.8} color={color} />;
+}
+
 // ─── Data ────────────────────────────────────────────────────────────────────
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={2} /> },
@@ -93,23 +136,27 @@ const NAV_ITEMS: NavItem[] = [
 
 const STATS: StatCard[] = [
   {
-    id: 'nearby', value: 28, label: 'Nearby Needs', icon: '👥',
-    iconBg: '#f0fdfa', color: '#0d9488', trend: '+12%', trendDir: 'up',
+    id: 'nearby', value: 28, label: 'Nearby Needs',
+    icon: <Users size={21} strokeWidth={1.8} color="#0d9488" />,
+    iconBg: 'rgba(13, 148, 136, 0.11)', color: '#0d9488', trend: '+12%', trendDir: 'up',
     chartData: [4, 7, 5, 9, 6, 8, 10], chartColor: '#0d9488',
   },
   {
-    id: 'progress', value: 9, label: 'In Progress', icon: '🔄',
-    iconBg: '#fff7ed', color: '#f59e0b', trend: '+5%', trendDir: 'up',
+    id: 'progress', value: 9, label: 'In Progress',
+    icon: <Clock size={21} strokeWidth={1.8} color="#f59e0b" />,
+    iconBg: 'rgba(245, 158, 11, 0.11)', color: '#f59e0b', trend: '+5%', trendDir: 'up',
     chartData: [3, 5, 4, 6, 5, 7, 9], chartColor: '#f59e0b',
   },
   {
-    id: 'completed', value: 16, label: 'Completed', icon: '✅',
-    iconBg: '#f0fdf4', color: '#10b981', trend: '+26%', trendDir: 'up',
+    id: 'completed', value: 16, label: 'Completed',
+    icon: <CheckCircle2 size={21} strokeWidth={1.8} color="#10b981" />,
+    iconBg: 'rgba(16, 185, 129, 0.11)', color: '#10b981', trend: '+26%', trendDir: 'up',
     chartData: [5, 8, 7, 10, 9, 13, 16], chartColor: '#10b981',
   },
   {
-    id: 'rating', value: '4.8', label: 'Community Rating', icon: '⭐',
-    iconBg: '#fdf4ff', color: '#a855f7', trend: '+0.2', trendDir: 'up',
+    id: 'rating', value: '4.8', label: 'Community Rating',
+    icon: <Star size={21} strokeWidth={1.8} color="#a855f7" />,
+    iconBg: 'rgba(168, 85, 247, 0.11)', color: '#a855f7', trend: '+0.2', trendDir: 'up',
     chartData: [4.2, 4.3, 4.5, 4.4, 4.6, 4.7, 4.8], chartColor: '#a855f7',
   },
 ];
@@ -117,37 +164,37 @@ const STATS: StatCard[] = [
 const NEEDS: Need[] = [
   {
     id: 'n1', title: 'Food Support for Family', location: 'Vijay Nagar, Indore',
-    timeAgo: '10 mins ago', emoji: '🍚',
+    timeAgo: '10 mins ago', emoji: 'Food',
     tagLabel: 'Food', tagColor: '#2563eb', tagBorder: '#bfdbfe', tagBg: '#eff6ff',
   },
   {
     id: 'n2', title: 'Medical Help Required', location: 'Palasia, Indore',
-    timeAgo: '25 mins ago', emoji: '💊',
+    timeAgo: '25 mins ago', emoji: 'Medical',
     tagLabel: 'Medical', tagColor: '#e11d48', tagBorder: '#fecdd3', tagBg: '#fff1f2',
   },
   {
     id: 'n3', title: 'School Supplies Needed', location: 'Scheme 54, Indore',
-    timeAgo: '1 hour ago', emoji: '📚',
+    timeAgo: '1 hour ago', emoji: 'Education',
     tagLabel: 'Education', tagColor: '#0d9488', tagBorder: '#99f6e4', tagBg: '#f0fdfa',
   },
   {
     id: 'n4', title: 'Elderly Care Support', location: 'Annapurna Road, Indore',
-    timeAgo: '2 hours ago', emoji: '👴',
+    timeAgo: '2 hours ago', emoji: 'Elderly',
     tagLabel: 'Elderly', tagColor: '#7c3aed', tagBorder: '#ddd6fe', tagBg: '#f5f3ff',
   },
 ];
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { id: 'report', label: 'Report a Need', sub: 'Let the community know', icon: '➕', bg: '#eff6ff', iconBg: '#dbeafe' },
-  { id: 'find', label: 'Find Nearby Needs', sub: 'Explore around you', icon: '🗺️', bg: '#f0fdf4', iconBg: '#d1fae5' },
-  { id: 'myreports', label: 'My Reports', sub: 'Track your submissions', icon: '📋', bg: '#f5f3ff', iconBg: '#ede9fe' },
-  { id: 'helping', label: 'My Helping Activities', sub: 'See your impact', icon: '❤️', bg: '#fff1f2', iconBg: '#fce7f3' },
+  { id: 'report', label: 'Report a Need', sub: 'Let the community know', icon: <PlusCircle size={20} strokeWidth={1.8} color="#2563eb" />, bg: '#eff6ff', iconBg: '#dbeafe' },
+  { id: 'find', label: 'Find Nearby Needs', sub: 'Explore around you', icon: <Compass size={20} strokeWidth={1.8} color="#0d9488" />, bg: '#f0fdf4', iconBg: '#d1fae5' },
+  { id: 'myreports', label: 'My Reports', sub: 'Track your submissions', icon: <ClipboardList size={20} strokeWidth={1.8} color="#7c3aed" />, bg: '#f5f3ff', iconBg: '#ede9fe' },
+  { id: 'helping', label: 'My Helping Activities', sub: 'See your impact', icon: <Heart size={20} strokeWidth={1.8} color="#e11d48" />, bg: '#fff1f2', iconBg: '#fce7f3' },
 ];
 
 const ACTIVITIES: Activity[] = [
-  { id: 'a1', title: 'Helped with Food Supplies', location: 'Vijay Nagar, Indore • 2 days ago', emoji: '🍚', status: 'completed' },
-  { id: 'a2', title: 'Clothes Donation', location: 'Rajwada, Indore • 4 days ago', emoji: '👕', status: 'completed' },
-  { id: 'a3', title: 'Medical Support', location: 'MY Hospital, Indore • 1 week ago', emoji: '💊', status: 'completed' },
+  { id: 'a1', title: 'Helped with Food Supplies', location: 'Vijay Nagar, Indore • 2 days ago', emoji: 'Food', status: 'completed' },
+  { id: 'a2', title: 'Clothes Donation', location: 'Rajwada, Indore • 4 days ago', emoji: 'Clothes', status: 'completed' },
+  { id: 'a3', title: 'Medical Support', location: 'MY Hospital, Indore • 1 week ago', emoji: 'Medical', status: 'completed' },
 ];
 
 const DONUT_SEGMENTS: DonutSegment[] = [
@@ -331,8 +378,20 @@ const StatCardItem: React.FC<{ stat: StatCard; onClick: () => void }> = ({ stat,
       role="button"
       tabIndex={0}
     >
-      <div className="stat-icon-wrap" style={{ background: stat.iconBg }}>
-        <span style={{ fontSize: '22px' }}>{stat.icon}</span>
+      <div
+        className="stat-icon-wrap"
+        style={{
+          width: 46,
+          height: 46,
+          borderRadius: 12,
+          background: stat.iconBg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {stat.icon}
       </div>
       <div className="stat-body">
         <div className="stat-value" style={{ color: stat.color }}>{displayVal}</div>
@@ -825,7 +884,9 @@ const Dashboard: React.FC = () => {
                 </div>
               ) : nearbyNeedsList.length === 0 ? (
                 <div style={{ padding: '24px 16px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontSize: 28, marginBottom: 6 }}>📍</div>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(13, 148, 136, 0.1)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#0d9488', marginBottom: 8 }}>
+                    <MapPin size={24} strokeWidth={1.8} />
+                  </div>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1e293b' }}>
                     No needs reported within {selectedLocation.radiusKm === 0 ? 'city limits' : `${selectedLocation.radiusKm} km`}
                   </div>
@@ -859,7 +920,9 @@ const Dashboard: React.FC = () => {
                       role="button"
                       tabIndex={0}
                     >
-                      <div className="need-thumb">{need.emoji}</div>
+                      <div className="need-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {getCategoryIcon(need.category || need.title, 18, need.tagColor)}
+                      </div>
                       <div className="need-body">
                         <div className="need-title">{need.title}</div>
                         <div className="need-loc">
@@ -908,11 +971,11 @@ const Dashboard: React.FC = () => {
                     key={qa.id}
                     className="qa-card ripple-container"
                     style={{ background: qa.bg }}
-                    onClick={(e) => { addRipple(e); showToast(`${qa.icon} ${qa.label}`); handleNav(qa.id === 'report' ? 'report' : qa.id === 'find' ? 'nearby' : qa.id === 'myreports' ? 'activities' : 'activities'); }}
+                    onClick={(e) => { addRipple(e); showToast(`${qa.label}`); handleNav(qa.id === 'report' ? 'report' : qa.id === 'find' ? 'nearby' : qa.id === 'myreports' ? 'activities' : 'activities'); }}
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="qa-icon" style={{ background: qa.iconBg }}>{qa.icon}</div>
+                    <div className="qa-icon" style={{ background: qa.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{qa.icon}</div>
                     <div className="qa-label">{qa.label}</div>
                     <div className="qa-sub">{qa.sub}</div>
                   </div>
@@ -922,7 +985,9 @@ const Dashboard: React.FC = () => {
                 className="helping-promo ripple-container"
                 onClick={(e) => { addRipple(e); handleNav('nearby'); }}
               >
-                <div className="promo-emoji">❤️</div>
+                <div className="promo-emoji" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
+                  <Heart size={26} strokeWidth={1.8} />
+                </div>
                 <div className="promo-body">
                   <h4>Be a Helping Hand</h4>
                   <p>Support someone in need and make a real impact today.</p>
@@ -950,19 +1015,19 @@ const Dashboard: React.FC = () => {
               <BarChart />
               <div className="impact-stats">
                 {[
-                  { icon: '🤝', num: '120+', lbl: 'People Helped' },
-                  { icon: '💚', num: '2,000+', lbl: 'Lives Touched' },
-                  { icon: '👥', num: '50+', lbl: 'Active Helpers' },
-                  { icon: '🏙️', num: '4', lbl: 'Cities Reached' },
+                  { icon: <HandHeart size={20} strokeWidth={1.8} color="#2563eb" />, num: '120+', lbl: 'People Helped', bg: 'rgba(37, 99, 235, 0.1)' },
+                  { icon: <HeartHandshake size={20} strokeWidth={1.8} color="#10b981" />, num: '2,000+', lbl: 'Lives Touched', bg: 'rgba(16, 185, 129, 0.1)' },
+                  { icon: <Users size={20} strokeWidth={1.8} color="#a855f7" />, num: '50+', lbl: 'Active Helpers', bg: 'rgba(168, 85, 247, 0.1)' },
+                  { icon: <Building2 size={20} strokeWidth={1.8} color="#f59e0b" />, num: '4', lbl: 'Cities Reached', bg: 'rgba(245, 158, 11, 0.1)' },
                 ].map((item) => (
                   <div
                     key={item.lbl}
                     className="impact-stat-item ripple-container"
-                    onClick={(e) => { addRipple(e); showToast(`${item.icon} ${item.num} ${item.lbl}`); }}
+                    onClick={(e) => { addRipple(e); showToast(`${item.num} ${item.lbl}`); }}
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="impact-stat-icon">{item.icon}</div>
+                    <div className="impact-stat-icon" style={{ background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</div>
                     <div>
                       <div className="impact-stat-num">{item.num}</div>
                       <div className="impact-stat-lbl">{item.lbl}</div>
@@ -1012,11 +1077,13 @@ const Dashboard: React.FC = () => {
                   <div
                     key={act.id}
                     className="activity-item ripple-container"
-                    onClick={(e) => { addRipple(e); showToast(`✅ ${act.title}`); }}
+                    onClick={(e) => { addRipple(e); showToast(`Activity: ${act.title}`); }}
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="activity-thumb">{act.emoji}</div>
+                    <div className="activity-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {getCategoryIcon(act.title, 18, '#0d9488')}
+                    </div>
                     <div className="activity-body">
                       <div className="activity-title">{act.title}</div>
                       <div className="activity-loc">{act.location}</div>

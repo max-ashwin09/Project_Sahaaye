@@ -356,7 +356,7 @@ needsRouter.get('/duplicates', async (req: Request, res: Response) => {
     const lat = parseFloat(req.query.lat as string);
     const lng = parseFloat(req.query.lng as string);
     const category = (req.query.category as string || '').trim();
-    const radiusMeters = parseFloat(req.query.radiusMeters as string) || 200;
+    const radiusMeters = parseFloat(req.query.radiusMeters as string) || 300;
     const days = parseInt(req.query.days as string, 10) || 7;
 
     if (isNaN(lat) || isNaN(lng)) {
@@ -439,8 +439,13 @@ needsRouter.post(
   '/',
   uploadMiddleware.fields([
     { name: 'photo', maxCount: 1 },
-    { name: 'image', maxCount: 1 },
-    { name: 'file', maxCount: 1 },
+    { name: 'photo_0', maxCount: 1 },
+    { name: 'photo_1', maxCount: 1 },
+    { name: 'photo_2', maxCount: 1 },
+    { name: 'photo_3', maxCount: 1 },
+    { name: 'photo_4', maxCount: 1 },
+    { name: 'image', maxCount: 5 },
+    { name: 'file', maxCount: 5 },
   ]),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -21,6 +21,9 @@ import {
   ExternalLink,
   Navigation,
   X,
+  Route,
+  Globe,
+  Map,
 } from 'lucide-react';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 
@@ -917,7 +920,9 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             onClick={() => setMapType('streets')}
             title="Streets & highways view"
           >
-            <span className="layer-icon">🗺️</span>
+            <span className="layer-icon">
+              <Route size={16} strokeWidth={1.8} />
+            </span>
             <span className="layer-name">Streets</span>
           </button>
           <button
@@ -926,7 +931,9 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             onClick={() => setMapType('satellite')}
             title="Satellite view with actual houses & road names"
           >
-            <span className="layer-icon">🛰️</span>
+            <span className="layer-icon">
+              <Globe size={16} strokeWidth={1.8} />
+            </span>
             <span className="layer-name">Satellite</span>
           </button>
           <button
@@ -935,7 +942,9 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             onClick={() => setMapType('terrain')}
             title="Standard topographic view"
           >
-            <span className="layer-icon">🏔️</span>
+            <span className="layer-icon">
+              <MapPin size={16} strokeWidth={1.8} />
+            </span>
             <span className="layer-name">Standard</span>
           </button>
         </div>

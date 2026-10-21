@@ -12,6 +12,7 @@
   transition: all 0.2s ease;
   position: relative;
   width: 100%;
+  isolation: isolate;
 }
 
 .livemap-card-container:hover {
@@ -469,7 +470,7 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
   touch-action: manipulation;
   user-select: none;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -494,8 +495,15 @@
 }
 
 .floating-layer-btn .layer-icon {
-  font-size: 14px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: color 0.15s ease;
+}
+
+.floating-layer-btn.active .layer-icon {
+  color: #ffffff;
 }
 
 .floating-layer-btn .layer-name {

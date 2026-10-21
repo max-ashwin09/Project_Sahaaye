@@ -314,19 +314,17 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onToast }) =
       {/* ─── DROPDOWN PANEL / MOBILE BOTTOM SHEET ──────────────────────────── */}
       {isOpen && (
         <>
-          {/* Mobile backdrop */}
-          {isMobile && (
-            <div
-              style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(15, 23, 42, 0.5)',
-                backdropFilter: 'blur(2px)',
-                zIndex: 9990,
-              }}
-              onClick={() => setIsOpen(false)}
-            />
-          )}
+          {/* Universal Backdrop (Closes panel and intercepts background clicks) */}
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: isMobile ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
+              backdropFilter: isMobile ? 'blur(2px)' : 'none',
+              zIndex: 9998,
+            }}
+            onClick={() => setIsOpen(false)}
+          />
 
           <div
             ref={panelRef}
@@ -353,13 +351,14 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onToast }) =
                     position: 'absolute',
                     top: 'calc(100% + 8px)',
                     right: 0,
-                    width: 380,
+                    width: 'min(380px, calc(100vw - 24px))',
+                    maxWidth: 'min(380px, calc(100vw - 24px))',
                     background: '#ffffff',
                     borderRadius: 16,
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 12px 36px -6px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08)',
+                    border: '1.5px solid #e2e8f0',
+                    boxShadow: '0 16px 40px -6px rgba(0, 0, 0, 0.2), 0 6px 16px rgba(0, 0, 0, 0.08)',
                     zIndex: 9999,
-                    maxHeight: 560,
+                    maxHeight: '80vh',
                     overflowY: 'auto',
                     padding: 16,
                     animation: 'fadeIn 0.15s ease-out',
@@ -419,11 +418,13 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onToast }) =
                   padding: '9px 12px 9px 36px',
                   borderRadius: 10,
                   border: '1.5px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#0f172a',
                   fontSize: 13,
                   outline: 'none',
                   boxSizing: 'border-box',
                   fontFamily: 'inherit',
-                  transition: 'border-color 0.15s',
+                  transition: 'border-color 0.15s, box-shadow 0.15s',
                 }}
               />
               {isSearching && (
