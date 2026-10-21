@@ -9,9 +9,11 @@ export const appDownloadRouter = Router();
  */
 function getLatestApkInfo() {
   const candidatePaths = [
+    path.resolve(process.cwd(), 'frontend/public/downloads/sahaaye-latest.apk'),
     path.resolve(process.cwd(), 'storage/downloads/sahaaye-latest.apk'),
     path.resolve(process.cwd(), 'android/app/build/outputs/apk/debug/app-debug.apk'),
     path.resolve(process.cwd(), 'android/app/build/outputs/apk/release/app-release-unsigned.apk'),
+    path.resolve(__dirname, '../../../../frontend/public/downloads/sahaaye-latest.apk'),
     path.resolve(__dirname, '../../../../storage/downloads/sahaaye-latest.apk'),
     path.resolve(__dirname, '../../../../android/app/build/outputs/apk/debug/app-debug.apk'),
   ];
@@ -61,7 +63,7 @@ appDownloadRouter.get('/info', (_req: Request, res: Response) => {
     fileSizeMb: `${sizeMb} MB`,
     fileSizeBytes: apkInfo.stat.size,
     lastUpdated: apkInfo.stat.mtime.toISOString(),
-    downloadUrl: '/api/v1/app/download',
+    downloadUrl: '/downloads/sahaaye-latest.apk',
   });
 });
 

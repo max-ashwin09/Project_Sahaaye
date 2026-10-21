@@ -374,11 +374,25 @@ const Dashboard: React.FC = () => {
             fileSizeMb: data.fileSizeMb || '25.0 MB',
             version: data.version || '1.0.0',
             lastUpdated: data.lastUpdated,
-            downloadUrl: data.downloadUrl || '/api/v1/app/download',
+            downloadUrl: data.downloadUrl || '/downloads/sahaaye-latest.apk',
+          });
+        } else {
+          setApkInfo({
+            fileSizeMb: '25.0 MB',
+            version: '1.0.0',
+            lastUpdated: new Date().toISOString(),
+            downloadUrl: '/downloads/sahaaye-latest.apk',
           });
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setApkInfo({
+          fileSizeMb: '25.0 MB',
+          version: '1.0.0',
+          lastUpdated: new Date().toISOString(),
+          downloadUrl: '/downloads/sahaaye-latest.apk',
+        });
+      });
   }, []);
 
   const fetchLiveNeeds = useCallback(async () => {
@@ -482,7 +496,7 @@ const Dashboard: React.FC = () => {
 
         <div className="sidebar-bottom">
           <a
-            href="/api/v1/app/download"
+            href={apkInfo?.downloadUrl || '/downloads/sahaaye-latest.apk'}
             download="Sahaaye-Latest.apk"
             className="sidebar-app-btn ripple-container"
             onClick={(e) => {
@@ -538,7 +552,7 @@ const Dashboard: React.FC = () => {
 
           <div className="topbar-right">
             <a
-              href="/api/v1/app/download"
+              href={apkInfo?.downloadUrl || '/downloads/sahaaye-latest.apk'}
               download="Sahaaye-Latest.apk"
               className="download-topbar-btn ripple-container"
               onClick={(e) => {
@@ -697,7 +711,7 @@ const Dashboard: React.FC = () => {
 
             <div className="app-card-right">
               <a
-                href="/api/v1/app/download"
+                href={apkInfo?.downloadUrl || '/downloads/sahaaye-latest.apk'}
                 download="Sahaaye-Latest.apk"
                 className="app-download-action-btn ripple-container"
                 onClick={(e) => {
