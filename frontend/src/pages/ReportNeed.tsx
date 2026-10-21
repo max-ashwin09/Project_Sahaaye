@@ -21,7 +21,6 @@ import {
   Info,
   EyeOff,
   Eye,
-  Upload,
   Check,
 } from 'lucide-react';
 import { TRANSLATIONS } from '../utils/i18n';
@@ -29,7 +28,7 @@ import { useLanguageStore } from '../stores/useLanguageStore';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { LiveCameraModal, CameraMediaItem } from '../components/LiveCameraModal';
 import { reverseGeocodeToLocation } from '../services/geocoding';
-import { blurAllFacesOnCanvas } from '../utils/faceDetector';
+import { blurAllFacesOnCanvas, detectFacesOnCanvas } from '../utils/faceDetector';
 
 interface ReportNeedProps {
   onSuccess?: () => void;
@@ -235,118 +234,6 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
 
   const [pendingBlurImage, setPendingBlurImage] = useState<PendingBlurImage | null>(null);
   const [isProcessingBlur, setIsProcessingBlur] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-
-    if (mediaItems.length >= 5) {
-      showToast(t.maxMediaReached);
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      setMediaError(lang === 'hi' ? 'केवल इमेज फाइलें (JPG, PNG, WebP) मान्य हैं।' : 'Only image files (JPG, PNG, WebP) are allowed.');
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setMediaError(lang === 'hi' ? 'फ़ाइल का साइज़ 10MB से कम होना चाहिए।' : 'File size must be under 10MB.');
-      return;
-    }
-
-    setMediaError(null);
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const rawUrl = event.target?.result as string;
-      if (!rawUrl) return;
-
-      const img = new Image();
-      await new Promise((res, rej) => {
-        img.onload = () => res(true);
-        img.onerror = rej;
-        img.src = rawUrl;
-      });
-
-      const maxDim = 1400;
-      let w = img.width;
-      let h = img.height;
-      if (w > maxDim || h > maxDim) {
-        if (w > h) {
-          h = Math.round((h * maxDim) / w);
-          w = maxDim;
-        } else {
-          w = Math.round((w * maxDim) / h);
-          h = maxDim;
-        }
-      }
-
-      // 1. Prepare Base Canvas with Geo-Stamp
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.drawImage(img, 0, 0, w, h);
-
-      // Geo-Stamp
-      const lat = location?.lat ?? 22.7196;
-      const lng = location?.lng ?? 75.8577;
-      const acc = location?.acc ?? 20;
-
-      const bannerHeight = Math.max(50, Math.round(h * 0.08));
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-      ctx.fillRect(0, h - bannerHeight, w, bannerHeight);
-      ctx.fillStyle = '#0d9488';
-      ctx.fillRect(0, h - bannerHeight, w, 3);
-
-      const now = new Date();
-      const dateFormatted = now.toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', {
-        dateStyle: 'medium',
-        timeStyle: 'medium',
-      });
-      const fontSize = Math.max(12, Math.round(bannerHeight * 0.28));
-      ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
-      ctx.fillStyle = '#ffffff';
-      ctx.textBaseline = 'middle';
-      const line1 = `📍 GEO-STAMPED: ${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E (±${acc}m) • ${dateFormatted}`;
-      const line2 = `🛡️ SAHAAYE VERIFIED COMMUNITY PROOF • DIGNITY-FIRST`;
-      ctx.fillText(line1, 14, h - bannerHeight + bannerHeight * 0.35);
-      ctx.font = `500 ${Math.round(fontSize * 0.8)}px system-ui, -apple-system, sans-serif`;
-      ctx.fillStyle = '#5eead4';
-      ctx.fillText(line2, 14, h - bannerHeight + bannerHeight * 0.75);
-
-      const originalDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-
-      // 2. Prepare Blurred Version Canvas
-      const blurCanvas = document.createElement('canvas');
-      blurCanvas.width = w;
-      blurCanvas.height = h;
-      const blurCtx = blurCanvas.getContext('2d');
-      if (!blurCtx) return;
-      blurCtx.drawImage(canvas, 0, 0);
-
-      const facesCount = await blurAllFacesOnCanvas(blurCanvas, true);
-      const blurredDataUrl = blurCanvas.toDataURL('image/jpeg', 0.9);
-
-      // 3. Immediately Open Face Blur Option Modal!
-      setPendingBlurImage({
-        originalDataUrl,
-        blurredDataUrl,
-        currentDataUrl: facesCount > 0 ? blurredDataUrl : originalDataUrl,
-        facesCount,
-        isBlurred: facesCount > 0,
-        lat,
-        lng,
-        acc,
-      });
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleBlurCapturedPhoto = async (id: string) => {
     const item = mediaItems.find((m) => m.id === id);
@@ -869,79 +756,34 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
               </p>
             </div>
 
-            {/* Media Action Buttons: Live Camera + Upload Photo */}
+            {/* Media Action Button: Live Camera Only */}
             <div style={{ textAlign: 'center', padding: '24px 16px', background: '#f8fafc', borderRadius: 14, border: '2px dashed #cbd5e1' }}>
-              <div
+              <button
+                type="button"
+                onClick={() => setIsCameraOpen(true)}
                 style={{
-                  display: 'flex',
+                  padding: '14px 28px',
+                  borderRadius: 12,
+                  background: '#0d9488',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 12,
-                  flexWrap: 'wrap',
+                  gap: 10,
+                  boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)',
+                  transition: 'transform 0.1s ease',
                 }}
               >
-                {/* Take Photo / Video (Live Camera) */}
-                <button
-                  type="button"
-                  onClick={() => setIsCameraOpen(true)}
-                  style={{
-                    padding: '12px 24px',
-                    borderRadius: 12,
-                    background: '#0d9488',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontSize: 14.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)',
-                    transition: 'transform 0.1s ease',
-                  }}
-                >
-                  <Camera size={19} />
-                  <span>{t.takePhotoVideoBtn}</span>
-                </button>
-
-                {/* Upload Photo (Triggers Instant Face Blur Option Modal) */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    padding: '12px 24px',
-                    borderRadius: 12,
-                    background: '#ffffff',
-                    color: '#0d9488',
-                    border: '1.5px solid #0d9488',
-                    fontSize: 14.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    boxShadow: '0 2px 8px rgba(13, 148, 136, 0.1)',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <Upload size={19} />
-                  <span>{t.uploadPhotoBtn}</span>
-                </button>
-
-                {/* Hidden File Input for Image Upload */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  style={{ display: 'none' }}
-                  onChange={handleFileUpload}
-                />
-              </div>
-
-              <p style={{ fontSize: 12, color: '#94a3b8', margin: '12px 0 0' }}>
+                <Camera size={20} />
+                <span>{t.takePhotoVideoBtn}</span>
+              </button>
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: '10px 0 0' }}>
                 {lang === 'hi'
-                  ? 'लाइव कैमरे से लें या फ़ोटो अपलोड करें — अपलोड होते ही चेहरा ब्लर करने का विकल्प मिलेगा (अधिकतम 5 आइटम)'
-                  : 'Capture live camera proof or upload photos — instant face blur option appears on upload (Max 5 captures)'}
+                  ? 'लाइव कैमरा खोलता है और हर फोटो पर GPS जियो-स्टैम्प दर्ज करता है (अधिकतम 5 आइटम)'
+                  : 'Opens live full-screen camera and burns GPS coordinates into every photo (Max 5 captures)'}
               </p>
             </div>
 
@@ -975,44 +817,24 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
                     {t.itemsCount} ({mediaItems.length}/5)
                   </span>
                   {mediaItems.length < 5 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#0d9488',
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                      >
-                        <Upload size={13} />
-                        <span>{t.uploadPhotoBtn}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsCameraOpen(true)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#0d9488',
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                      >
-                        <Camera size={13} />
-                        <span>+ {lang === 'hi' ? 'कैमरा' : 'Camera'}</span>
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraOpen(true)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#0d9488',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Camera size={13} />
+                      <span>+ {lang === 'hi' ? 'कैमरा' : 'Camera'}</span>
+                    </button>
                   )}
                 </div>
 
@@ -1670,9 +1492,58 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
         isOpen={isCameraOpen}
         initialItems={mediaItems}
         onClose={() => setIsCameraOpen(false)}
-        onDone={(items) => {
+        onDone={async (items) => {
           setMediaItems(items);
           if (items.length > 0) setMediaError(null);
+
+          // Find newly captured photo to offer Face Blur Option Modal
+          const newlyCaptured = items.filter(
+            (it) => it.type === 'photo' && !mediaItems.some((m) => m.id === it.id)
+          );
+          if (newlyCaptured.length > 0) {
+            const target = newlyCaptured[newlyCaptured.length - 1];
+            try {
+              const img = new Image();
+              await new Promise((res, rej) => {
+                img.onload = () => res(true);
+                img.onerror = rej;
+                img.src = target.dataUrl;
+              });
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                const faces = await detectFacesOnCanvas(canvas);
+                if (faces.length > 0) {
+                  const originalDataUrl = target.dataUrl;
+                  const blurCanvas = document.createElement('canvas');
+                  blurCanvas.width = img.width;
+                  blurCanvas.height = img.height;
+                  const bCtx = blurCanvas.getContext('2d');
+                  if (bCtx) {
+                    bCtx.drawImage(img, 0, 0);
+                    await blurAllFacesOnCanvas(blurCanvas, true);
+                    const blurredDataUrl = blurCanvas.toDataURL('image/jpeg', 0.9);
+                    setPendingBlurImage({
+                      originalDataUrl,
+                      blurredDataUrl,
+                      currentDataUrl: blurredDataUrl,
+                      facesCount: faces.length,
+                      isBlurred: true,
+                      existingId: target.id,
+                      lat: target.lat,
+                      lng: target.lng,
+                      acc: target.acc,
+                    });
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('Face blur auto-detect note:', err);
+            }
+          }
         }}
       />
 

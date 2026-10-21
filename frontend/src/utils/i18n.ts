@@ -23,7 +23,7 @@ export const TRANSLATIONS = {
 
     // Step 1: Media
     photoStepTitle: 'Need Proof / Photo & Video',
-    photoStepSubtitle: 'Capture live camera proof with geo-stamping or upload photos.',
+    photoStepSubtitle: 'Capture live camera proof with geo-stamping. Live camera only.',
     takePhotoVideoBtn: 'Take Photo / Video',
     uploadPhotoBtn: 'Upload Photo',
     blurModalTitle: 'Face Blur & Privacy Protection',
@@ -135,7 +135,7 @@ export const TRANSLATIONS = {
 
     // Step 1: Media
     photoStepTitle: 'ज़रूरत का प्रमाण / फोटो व वीडियो',
-    photoStepSubtitle: 'जियो-स्टैम्प के साथ लाइव कैमरे से प्रमाण लें या फ़ोटो अपलोड करें।',
+    photoStepSubtitle: 'जियो-स्टैम्प के साथ लाइव कैमरे से प्रमाण लें। केवल लाइव कैमरा मान्य है।',
     takePhotoVideoBtn: 'फोटो / वीडियो लें',
     uploadPhotoBtn: 'फ़ोटो अपलोड करें',
     blurModalTitle: 'चेहरा ब्लर व निजता सुरक्षा',
