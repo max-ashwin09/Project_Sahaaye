@@ -205,6 +205,44 @@ const BASE_NEEDS_CATALOG: NeedItemData[] = [
   },
 ];
 
+function mapSubmittedNeedToItem(n: any): NeedItemData {
+  const cat = n.cat || n.category || 'Other';
+  const urg = n.urg || n.urgency || 'Medium';
+  const city = n.loc?.city || n.city || 'Indore';
+  const locStr = n.land
+    ? `${n.land}, ${city}`
+    : n.loc?.address || `${city}, MP`;
+
+  return {
+    id: n.id,
+    title: n.title,
+    category: cat,
+    urgency: urg,
+    location: locStr,
+    city: city,
+    latitude: Number(n.loc?.lat) || Number(n.latitude) || 22.7196,
+    longitude: Number(n.loc?.lng) || Number(n.longitude) || 75.8577,
+    timeAgo: 'Just now',
+    emoji: cat.includes('Food')
+      ? '🍚'
+      : cat.includes('Med')
+      ? '💊'
+      : cat.includes('Water')
+      ? '💧'
+      : cat.includes('Cloth')
+      ? '👕'
+      : cat.includes('Edu')
+      ? '📚'
+      : cat.includes('Shelt')
+      ? '🏠'
+      : '🤝',
+    tagLabel: cat.split(' ')[0] || 'Seva',
+    tagColor: urg === 'High' ? '#dc2626' : urg === 'Medium' ? '#f59e0b' : '#10b981',
+    tagBorder: urg === 'High' ? '#fecaca' : urg === 'Medium' ? '#fde68a' : '#a7f3d0',
+    tagBg: urg === 'High' ? '#fef2f2' : urg === 'Medium' ? '#fffbeb' : '#ecfdf5',
+  };
+}
+
 /**
  * Reusable Hook: useNearbyNeeds()
  * Consumes the global selected location and performs geo-filtering
@@ -213,7 +251,32 @@ const BASE_NEEDS_CATALOG: NeedItemData[] = [
 export function useNearbyNeeds() {
   const { location, isAppFiltering } = useSelectedLocation();
   const [allNeeds, setAllNeeds] = useState<NeedItemData[]>(BASE_NEEDS_CATALOG);
+  const [localSubmittedNeeds, setLocalSubmittedNeeds] = useState<NeedItemData[]>(() => {
+    try {
+      const raw = localStorage.getItem('sahaaye_needs');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.map(mapSubmittedNeedToItem);
+        }
+      }
+    } catch {}
+    return [];
+  });
   const [isLoading, setIsLoading] = useState(false);
+
+  // Listen for local submissions
+  useEffect(() => {
+    const handleSubmitted = (e: any) => {
+      const need = e.detail;
+      if (need) {
+        const mapped = mapSubmittedNeedToItem(need);
+        setLocalSubmittedNeeds((prev) => [mapped, ...prev]);
+      }
+    };
+    window.addEventListener('sahaaye:need-submitted', handleSubmitted);
+    return () => window.removeEventListener('sahaaye:need-submitted', handleSubmitted);
+  }, []);
 
   // Fetch newly reported needs from backend API
   useEffect(() => {
@@ -257,12 +320,25 @@ export function useNearbyNeeds() {
     };
   }, []);
 
+  // Combine local newly submitted needs with catalogue
+  const combinedNeeds = useMemo(() => {
+    const ids = new Set<string>();
+    const list: NeedItemData[] = [];
+    for (const item of [...localSubmittedNeeds, ...allNeeds]) {
+      if (!ids.has(item.id)) {
+        ids.add(item.id);
+        list.push(item);
+      }
+    }
+    return list;
+  }, [localSubmittedNeeds, allNeeds]);
+
   // Filter & sort needs relative to current selected location
   const filteredNeeds = useMemo(() => {
     const { lat, lng, radiusKm, city, area } = location;
 
     // 1. Calculate real-time distance for each need
-    const withDistance = allNeeds.map((need) => {
+    const withDistance = combinedNeeds.map((need) => {
       const dist = getDistanceKm(lat, lng, need.latitude, need.longitude);
       return {
         ...need,
@@ -295,7 +371,7 @@ export function useNearbyNeeds() {
 
     // 3. Sort by closest distance first
     return filtered.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
-  }, [allNeeds, location]);
+  }, [combinedNeeds, location]);
 
   return {
     needs: filteredNeeds,

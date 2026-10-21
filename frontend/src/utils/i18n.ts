@@ -1,176 +1,210 @@
 /**
- * Lightweight bilingual dictionary (English & Hindi) for Sahaaye Report Community Need
+ * Bilingual dictionary (English & Hindi) for Sahaaye Report Community Need
  */
 
 export type LanguageCode = 'en' | 'hi';
 
 export const TRANSLATIONS = {
   en: {
-    // Header
-    pageTitle: 'Report Community Need',
-    pageSubtitle: 'Geo-Verified Humanitarian Aid · Live Seva Network',
-    loginRequiredNotice: 'Please Sign In before submitting a community report.',
-    signInBtn: 'Sign In to Report',
+    // Stepper Navigation
+    step1: '1. Photo',
+    step2: '2. Details',
+    step3: '3. Location',
+    step4: '4. Review',
+    closeModal: 'Close modal',
+    backBtn: 'Back',
+    nextBtn: 'Next Step',
+    submitNeedBtn: 'Submit need',
+    submittingNeed: 'Submitting Need…',
 
-    // Photo
-    photoLabel: 'Need Proof / Photo *',
-    photoChange: 'Change Photo',
-    photoRetake: 'Retake',
-    photoRemove: 'Remove Photo',
-    photoUploadTitle: 'Click to Take Photo or Upload Image',
-    photoUploadSubtitle: 'Camera opens directly on mobile. Supports JPG, PNG, WebP up to 10MB.',
-    compressing: 'Compressing image…',
-    aiAnalyzing: '🤖 AI Analyzing Photo for Need Details…',
-    aiSuccess: '✨ AI Suggested (Review & Edit)',
-    exifMatch: '✓ Photo GPS matches current location',
-    exifMismatch: '⚠️ Photo taken >500m away from current location (flagged for review)',
+    // Draft
+    draftRestoredBanner: 'Unsaved draft restored.',
+    clearDraftBtn: 'Clear',
 
-    // GPS
-    gpsLocked: 'GPS LOCKED & GEO-STAMPED',
-    gpsAcquiring: 'ACQUIRING GPS LOCK…',
-    refreshGps: 'Refresh GPS ↻',
-    pickManualPin: 'Pick on Map 🗺️',
-    accuracy: 'Accuracy',
-    lowAccuracyWarning: '⚠️ GPS accuracy is low (>100m). Please refresh or adjust on map.',
-    approximateNotice: '🛡️ Public map displays an approximate area (~300m) to protect dignity.',
+    // Step 1: Media
+    photoStepTitle: 'Need Proof / Photo & Video',
+    photoStepSubtitle: 'Capture live camera proof with geo-stamping. Live camera only.',
+    takePhotoVideoBtn: 'Take Photo / Video',
+    itemsCount: 'Items captured',
+    noMediaError: 'At least one photo or video is required to verify the community need.',
+    removeMediaBtn: 'Remove item',
+    videoBadge: 'VIDEO',
 
-    // Fields
+    // Camera Overlay
+    cameraTitle: 'Sahaaye Live Verification Camera',
+    cameraFindingLocation: 'Finding live location…',
+    cameraLocationLocked: 'Live location locked',
+    photoMode: 'Photo',
+    videoMode: 'Video',
+    blurFacesCheckbox: 'Blur faces (Privacy Filter)',
+    flashBtn: 'Flash / Torch',
+    switchCameraBtn: 'Switch Camera',
+    doneBtn: 'Done',
+    capturePhotoBtn: 'Capture Photo',
+    recordVideoBtn: 'Record Video',
+    stopVideoBtn: 'Stop Recording',
+    maxMediaReached: 'Max 5 captures reached in this session',
+    gpsRequiredNotice: 'GPS location is required. Please turn on GPS and allow location access.',
+    cameraPermissionDenied: 'Camera access was denied. Please allow camera permissions in browser settings.',
+    cameraNotFound: 'No camera hardware found on this device.',
+    cameraInsecureContext: 'Camera and GPS require a secure HTTPS connection or localhost.',
+    faceDetectorUnsupported: 'FaceDetector API unsupported on this browser; photo saved without face blur.',
+    torchUnsupported: 'Hardware torch is unsupported; screen flash was used.',
+
+    // Step 2: Need Details
+    detailsStepTitle: 'Need Information',
+    detailsStepSubtitle: 'Provide essential details so community helpers can take action.',
     titleLabel: 'Need Title *',
-    titlePlaceholder: 'e.g. Urgent food ration needed for 4 daily-wage families',
+    titlePlaceholder: 'e.g. Dry Ration Kits Needed for Displaced Families',
+    titleMinError: 'Title must be at least 3 characters long.',
     categoryLabel: 'Category *',
     urgencyLabel: 'Urgency Level *',
     descriptionLabel: 'Description & Specific Requirements',
-    descriptionPlaceholder: 'Describe the situation, required supplies, and any special instructions…',
-    peopleAffectedLabel: 'People Affected (Estimate)',
-    peopleAffectedPlaceholder: 'e.g. 5',
-    anonymousLabel: 'Report Anonymously',
-    anonymousHelp: 'Your name will be hidden from the public feed and map.',
+    descriptionPlaceholder: 'Describe the exact situation, required supplies, and any helpful context…',
+    descCharCount: 'characters',
+    descMaxError: 'Description cannot exceed 500 characters.',
 
     // Categories
-    catFood: '🍚 Food & Ration',
-    catMedical: '💊 Medical & Healthcare',
-    catEducation: '📚 Education & Books',
-    catShelter: '🏠 Shelter & Clothing',
-    catElderly: '👴 Elderly Care',
-    catWater: '💧 Clean Water',
-    catOthers: '🤝 Others / Community',
+    catFood: 'Food',
+    catWater: 'Water',
+    catClothes: 'Clothes and blankets',
+    catMedical: 'Medical',
+    catShelter: 'Shelter',
+    catEducation: 'Education',
+    catOther: 'Other',
 
-    // Urgency
-    urgencyNormal: '🟢 Normal',
-    urgencyUrgent: '🟠 Urgent (Within 24h)',
-    urgencyCritical: '🔴 Critical Emergency',
+    // Urgency chips
+    urgencyLow: 'Low',
+    urgencyMedium: 'Medium',
+    urgencyHigh: 'High',
 
-    // Voice
-    voiceHindi: '🇮🇳 हिन्दी',
-    voiceEnglish: '🇬🇧 English',
-    voiceListening: 'Listening… बोलिए…',
-    voiceClickToSpeak: 'Click mic to speak',
-    voiceUnsupported: 'Voice input not supported in this browser. Try Chrome or Edge.',
+    // Step 3: Location
+    locationStepTitle: 'Geo-Verification & Location',
+    locationStepSubtitle: 'Exact location captured via GPS. Public map shows approximate area.',
+    gpsCardLocked: 'GPS LOCKED & GEO-STAMPED',
+    gpsCardAcquiring: 'ACQUIRING GPS LOCK…',
+    refreshLocationBtn: 'Refresh location',
+    landmarkLabel: 'Landmark (Optional)',
+    landmarkPlaceholder: 'e.g. Near Bada Ganpati Temple, Opposite Water Tank',
+    locationRequiredError: 'Valid GPS location is required.',
+    approximateNotice: '🛡️ Public view will show only an approximate area (rounded coordinates) to protect dignity.',
+    exactCoordsLabel: 'Captured GPS Coordinates',
+    accuracyLabel: 'Accuracy',
+    approxCoordsLabel: 'Approximate Public Coordinates',
 
-    // Draft
-    draftSaved: 'Draft saved automatically',
-    clearDraft: 'Clear Draft',
-
-    // Submission
-    submitBtn: 'Publish Need with Geo-Stamp 🚀',
-    submittingBtn: 'Uploading & Geo-Verifying…',
-
-    // Duplicate Modal
-    duplicateDetectedTitle: 'Similar Need Already Reported Nearby!',
-    duplicateSubtitle: 'We found an active need in the same category within 300 meters:',
-    duplicateSupportBtn: '🤝 Support Existing Need Instead',
-    duplicateProceedBtn: '📝 Report Anyway (Separate Need)',
+    // Step 4: Review
+    reviewStepTitle: 'Review & Confirm Need',
+    reviewStepSubtitle: 'Please verify the details below before publishing to the community.',
+    reviewPhotosTitle: 'Captured Proof (Live Camera)',
+    reviewDetailsTitle: 'Summary of Need',
+    reviewLocationTitle: 'Verified Location',
 
     // Success Screen
-    successTitle: 'Need Successfully Reported & Published! 🎉',
-    successSubtitle: 'Your geo-verified humanitarian report has been published to the Sahaaye server and community map.',
+    successTitle: 'Need Successfully Reported! 🎉',
+    successSubtitle: 'Your need is now live on the Sahaaye network. Nearby community helpers have been notified.',
     reportIdLabel: 'Report ID',
-    statusTimelineTitle: 'Live Seva Status Timeline',
-    viewOnMapBtn: '📍 View on Live Map',
-    reportAnotherBtn: 'Report Another Need',
+    viewInNearbyBtn: '📍 View in Nearby Needs',
+    reportAnotherBtn: '+ Report Another Need',
   },
   hi: {
-    // Header
-    pageTitle: 'ज़रूरत की रिपोर्ट दर्ज करें',
-    pageSubtitle: 'भू-सत्यापित मानवीय सहायता · लाइव सेवा नेटवर्क',
-    loginRequiredNotice: 'रिपोर्ट दर्ज करने के लिए कृपया पहले साइन इन करें।',
-    signInBtn: 'रिपोर्ट करने के लिए साइन इन करें',
+    // Stepper Navigation
+    step1: '1. फोटो/वीडियो',
+    step2: '2. विवरण',
+    step3: '3. स्थान',
+    step4: '4. समीक्षा',
+    closeModal: 'बंद करें',
+    backBtn: 'पीछे जाएं',
+    nextBtn: 'आगे बढ़ें',
+    submitNeedBtn: 'ज़रूरत दर्ज करें',
+    submittingNeed: 'ज़रूरत दर्ज हो रही है…',
 
-    // Photo
-    photoLabel: 'ज़रूरत का प्रमाण / फ़ोटो *',
-    photoChange: 'फ़ोटो बदलें',
-    photoRetake: 'दोबारा लें',
-    photoRemove: 'फ़ोटो हटाएं',
-    photoUploadTitle: 'फ़ोटो खींचें या इमेज अपलोड करें',
-    photoUploadSubtitle: 'मोबाइल पर कैमरा तुरंत खुलता है। JPG, PNG, WebP 10MB तक।',
-    compressing: 'इमेज कम्प्रेस हो रही है…',
-    aiAnalyzing: '🤖 AI फ़ोटो से ज़रूरत का विवरण निकाल रहा है…',
-    aiSuccess: '✨ AI द्वारा सुझाया गया (बदल सकते हैं)',
-    exifMatch: '✓ फ़ोटो का GPS वर्तमान स्थान से मेल खाता है',
-    exifMismatch: '⚠️ फ़ोटो वर्तमान स्थान से 500m से अधिक दूर की है (समीक्षा के लिए चिह्नित)',
+    // Draft
+    draftRestoredBanner: 'असुरक्षित ड्राफ्ट पुनर्स्थापित किया गया।',
+    clearDraftBtn: 'हटाएं',
 
-    // GPS
-    gpsLocked: 'GPS लॉक और जियो-स्टैम्प सुरक्षित',
-    gpsAcquiring: 'GPS लोकेशन खोजी जा रही है…',
-    refreshGps: 'GPS रीफ़्रेश करें ↻',
-    pickManualPin: 'मैप पर चुनें 🗺️',
-    accuracy: 'सटीकता',
-    lowAccuracyWarning: '⚠️ GPS सटीकता कम है (>100m)। कृपया रीफ़्रेश करें या मैप पर सेट करें।',
-    approximateNotice: '🛡️ गोपनीयता हेतु पब्लिक मैप पर केवल लगभग ~300m का क्षेत्र दिखेगा।',
+    // Step 1: Media
+    photoStepTitle: 'ज़रूरत का प्रमाण / फोटो व वीडियो',
+    photoStepSubtitle: 'जियो-स्टैम्प के साथ लाइव कैमरे से प्रमाण लें। केवल लाइव कैमरा मान्य है।',
+    takePhotoVideoBtn: 'फोटो / वीडियो लें',
+    itemsCount: 'आइटम दर्ज',
+    noMediaError: 'ज़रूरत के सत्यापन के लिए कम से कम एक फोटो या वीडियो आवश्यक है।',
+    removeMediaBtn: 'हटाएं',
+    videoBadge: 'वीडियो',
 
-    // Fields
+    // Camera Overlay
+    cameraTitle: 'सहाय लाइव सत्यापन कैमरा',
+    cameraFindingLocation: 'लाइव लोकेशन खोजी जा रही है…',
+    cameraLocationLocked: 'लाइव लोकेशन सुरक्षित',
+    photoMode: 'फोटो',
+    videoMode: 'वीडियो',
+    blurFacesCheckbox: 'चेहरे ब्लर करें (गोपनीयता)',
+    flashBtn: 'फ्लैश / टॉर्च',
+    switchCameraBtn: 'कैमरा बदलें',
+    doneBtn: 'पूर्ण (Done)',
+    capturePhotoBtn: 'फोटो खींचें',
+    recordVideoBtn: 'वीडियो रिकॉर्ड करें',
+    stopVideoBtn: 'रिकॉर्डिंग रोकें',
+    maxMediaReached: 'इस सत्र में अधिकतम 5 आइटम पूरे हो गए हैं',
+    gpsRequiredNotice: 'GPS लोकेशन आवश्यक है। कृपया GPS चालू करें और लोकेशन की अनुमति दें।',
+    cameraPermissionDenied: 'कैमरा अनुमति अस्वीकृत है। कृपया ब्राउज़र सेटिंग्स में कैमरा चालू करें।',
+    cameraNotFound: 'इस डिवाइस पर कैमरा उपलब्ध नहीं है।',
+    cameraInsecureContext: 'कैमरा और GPS के लिए सुरक्षित HTTPS या localhost आवश्यक है।',
+    faceDetectorUnsupported: 'चेहरा पहचान (FaceDetector) समर्थित नहीं है, फोटो बिना ब्लर के सुरक्षित की गई।',
+    torchUnsupported: 'हार्डवेयर टॉर्च अनुपलब्ध; स्क्रीन फ्लैश का उपयोग किया गया।',
+
+    // Step 2: Need Details
+    detailsStepTitle: 'ज़रूरत का विवरण',
+    detailsStepSubtitle: 'आवश्यक जानकारी भरें ताकि सेवादार तुरंत मदद पहुंचा सकें।',
     titleLabel: 'ज़रूरत का शीर्षक *',
-    titlePlaceholder: 'उदा. 4 परिवारों के लिए आवश्यक सूखा राशन सहायता',
+    titlePlaceholder: 'उदा. विस्थापित परिवारों के लिए सूखा राशन सहायता',
+    titleMinError: 'शीर्षक कम से कम 3 अक्षरों का होना चाहिए।',
     categoryLabel: 'श्रेणी (Category) *',
     urgencyLabel: 'ज़रूरत की गंभीरता *',
     descriptionLabel: 'विवरण व विशेष आवश्यकताएं',
-    descriptionPlaceholder: 'परिस्थिति, आवश्यक सामग्री और सेवादारों के लिए निर्देश लिखें…',
-    peopleAffectedLabel: 'प्रभावित लोगों की संख्या',
-    peopleAffectedPlaceholder: 'उदा. 5',
-    anonymousLabel: 'गुमनाम रूप से रिपोर्ट करें',
-    anonymousHelp: 'सार्वजनिक फ़ीड और मैप पर आपका नाम छिपा रहेगा।',
+    descriptionPlaceholder: 'परिस्थिति, आवश्यक वस्तुएं और सेवादारों के लिए निर्देश लिखें…',
+    descCharCount: 'अक्षर',
+    descMaxError: 'विवरण 500 अक्षरों से अधिक नहीं हो सकता।',
 
     // Categories
-    catFood: '🍚 भोजन व राशन',
-    catMedical: '💊 चिकित्सा व दवाइयां',
-    catEducation: '📚 शिक्षा व पुस्तकें',
-    catShelter: '🏠 आश्रय व वस्त्र',
-    catElderly: '👴 बुजुर्ग सहायता',
-    catWater: '💧 स्वच्छ पेयजल',
-    catOthers: '🤝 अन्य सामाजिक सेवा',
+    catFood: 'Food (भोजन)',
+    catWater: 'Water (जल)',
+    catClothes: 'Clothes and blankets (वस्त्र व कम्बल)',
+    catMedical: 'Medical (दवाइयां)',
+    catShelter: 'Shelter (आश्रय)',
+    catEducation: 'Education (शिक्षा)',
+    catOther: 'Other (अन्य)',
 
-    // Urgency
-    urgencyNormal: '🟢 सामान्य',
-    urgencyUrgent: '🟠 आवश्यक (24 घंटे में)',
-    urgencyCritical: '🔴 अत्यंत गंभीर आपातकाल',
+    // Urgency chips
+    urgencyLow: 'Low (सामान्य)',
+    urgencyMedium: 'Medium (मध्यम)',
+    urgencyHigh: 'High (अत्यावश्यक)',
 
-    // Voice
-    voiceHindi: '🇮🇳 हिन्दी',
-    voiceEnglish: '🇬🇧 English',
-    voiceListening: 'सुन रहे हैं… बोलिए…',
-    voiceClickToSpeak: 'माइक दबाकर बोलें',
-    voiceUnsupported: 'इस ब्राउज़र में वॉयस इनपुट समर्थित नहीं है। Chrome या Edge प्रयोग करें।',
+    // Step 3: Location
+    locationStepTitle: 'भू-सत्यापन व स्थान',
+    locationStepSubtitle: 'GPS द्वारा सटीक लोकेशन दर्ज। पब्लिक मैप पर लगभग क्षेत्र दिखेगा।',
+    gpsCardLocked: 'GPS लॉक और जियो-स्टैम्प सुरक्षित',
+    gpsCardAcquiring: 'GPS लोकेशन खोजी जा रही है…',
+    refreshLocationBtn: 'लोकेशन रीफ़्रेश करें',
+    landmarkLabel: 'लैंडमार्क / पहचान चिह्न (ऐच्छिक)',
+    landmarkPlaceholder: 'उदा. बड़ा गणपति मंदिर के पास, पानी की टंकी के सामने',
+    locationRequiredError: 'सत्यापित GPS लोकेशन आवश्यक है।',
+    approximateNotice: '🛡️ गोपनीयता हेतु पब्लिक व्यू में केवल अनुमानित क्षेत्र (2 दशमलव स्थान) दिखेगा।',
+    exactCoordsLabel: 'दर्ज GPS निर्देशांक',
+    accuracyLabel: 'सटीकता',
+    approxCoordsLabel: 'सार्वजनिक अनुमानित निर्देशांक',
 
-    // Draft
-    draftSaved: 'ड्राफ्ट अपने आप सुरक्षित हो गया',
-    clearDraft: 'ड्राफ्ट हटाएं',
-
-    // Submission
-    submitBtn: 'जियो-स्टैम्प के साथ सेवा प्रकाशित करें 🚀',
-    submittingBtn: 'अपलोड व सत्यापित हो रहा है…',
-
-    // Duplicate Modal
-    duplicateDetectedTitle: 'नजदीक में मिलती-जुलती ज़रूरत पहले से दर्ज है!',
-    duplicateSubtitle: '300 मीटर के दायरे में इस श्रेणी की खुली ज़रूरत सक्रिय है:',
-    duplicateSupportBtn: '🤝 इस मौजूदा ज़रूरत का समर्थन करें',
-    duplicateProceedBtn: '📝 अलग ज़रूरत के रूप में दर्ज करें',
+    // Step 4: Review
+    reviewStepTitle: 'समीक्षा व पुष्टि करें',
+    reviewStepSubtitle: 'समुदाय में प्रकाशित करने से पहले कृपया विवरण की जांच कर लें।',
+    reviewPhotosTitle: 'दर्ज प्रमाण (लाइव कैमरा)',
+    reviewDetailsTitle: 'ज़रूरत का सारांश',
+    reviewLocationTitle: 'सत्यापित लोकेशन',
 
     // Success Screen
-    successTitle: 'ज़रूरत सफलतापूर्वक दर्ज और प्रकाशित हो गई! 🎉',
-    successSubtitle: 'आपकी रिपोर्ट सहाय नेटवर्क और लाइव मैप पर स्वयंसेवकों को प्रेषित कर दी गई है।',
+    successTitle: 'ज़रूरत सफलतापूर्वक दर्ज हो गई! 🎉',
+    successSubtitle: 'आपकी रिपोर्ट सहाय नेटवर्क पर प्रकाशित हो चुकी है और पास के सेवादारों को सूचित कर दिया गया है।',
     reportIdLabel: 'रिपोर्ट आईडी',
-    statusTimelineTitle: 'लाइव सेवा स्थिति ट्रैकिंग',
-    viewOnMapBtn: '📍 लाइव मैप पर देखें',
-    reportAnotherBtn: 'एक और ज़रूरत रिपोर्ट करें',
+    viewInNearbyBtn: '📍 निकटवर्ती ज़रूरतों में देखें',
+    reportAnotherBtn: '+ एक और ज़रूरत रिपोर्ट करें',
   },
 };

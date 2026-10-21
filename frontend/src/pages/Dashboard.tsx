@@ -5,6 +5,7 @@ import { LocationSelector } from '../components/LocationSelector';
 import { LocationPromptBanner } from '../components/LocationPromptBanner';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useNearbyNeeds } from '../hooks/useNearbyNeeds';
+import { useLanguageStore } from '../stores/useLanguageStore';
 import {
   LayoutDashboard,
   MapPin,
@@ -35,6 +36,7 @@ import {
   Droplets,
   Home,
   HelpCircle,
+  Languages,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -413,6 +415,7 @@ const Dashboard: React.FC = () => {
   const [needsList, setNeedsList] = useState<Need[]>(NEEDS);
   const { location: selectedLocation, filterToast, clearFilterToast } = useSelectedLocation();
   const { needs: nearbyNeedsList, isLoading: isNeedsLoading } = useNearbyNeeds();
+  const { lang, setLang, toggleLang } = useLanguageStore();
 
   useEffect(() => {
     if (filterToast) {
@@ -641,6 +644,36 @@ const Dashboard: React.FC = () => {
 
             <LocationSelector onToast={showToast} />
 
+            {/* Language Toggle Button (Instant Switch & Persisted) */}
+            <button
+              type="button"
+              className="lang-toggle-topbar-btn ripple-container"
+              onClick={(e) => {
+                addRipple(e);
+                toggleLang();
+                showToast(lang === 'en' ? '🇮🇳 भाषा हिंदी में सेट हो गई' : 'Language set to English');
+              }}
+              title={lang === 'en' ? 'Switch to हिंदी' : 'Switch to English'}
+              aria-label="Toggle language"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                color: '#0f766e',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Languages size={15} />
+              <span>{lang === 'en' ? 'हिंदी' : 'English'}</span>
+            </button>
+
             <div className="icon-btn ripple-container" onClick={(e) => { addRipple(e); showToast(currentUser ? '🔔 12 new notifications' : '🔔 Please login to view notifications'); }}>
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
@@ -683,8 +716,9 @@ const Dashboard: React.FC = () => {
             const locBtn = document.querySelector('.location-btn') as HTMLButtonElement;
             locBtn?.click();
           }}
-          onLanguageSwitch={(lang) => {
-            showToast(lang === 'hi' ? '🇮🇳 भाषा हिंदी में सेट हो गई' : 'Language set to English');
+          onLanguageSwitch={(newLang) => {
+            setLang(newLang);
+            showToast(newLang === 'hi' ? '🇮🇳 भाषा हिंदी में सेट हो गई' : 'Language set to English');
           }}
         />
 

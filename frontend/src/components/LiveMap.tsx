@@ -321,16 +321,86 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   }, [showControlsTemporarily]);
 
   // Setup global volunteer bridge for Leaflet popup buttons
+  const [liveNeeds, setLiveNeeds] = useState<NeedItem[]>(() => {
+    try {
+      const raw = localStorage.getItem('sahaaye_needs');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const mapped: NeedItem[] = parsed.map((n: any) => ({
+            id: n.id,
+            title: n.title,
+            category: (['Food', 'Medical', 'Shelter', 'Education', 'Water', 'Clothes'].includes(n.cat)
+              ? n.cat
+              : 'Other') as any,
+            urgency: n.urg === 'High' ? 'Critical' : n.urg === 'Medium' ? 'High' : 'Moderate',
+            location: n.land
+              ? `${n.land}, ${n.loc?.city || 'Indore'}`
+              : (n.loc?.address || `${n.loc?.city || 'Indore'}, MP`),
+            lat: Number(n.loc?.lat) || 22.7533,
+            lng: Number(n.loc?.lng) || 75.8937,
+            emoji: n.cat?.includes('Food')
+              ? '🍚'
+              : n.cat?.includes('Med')
+              ? '💊'
+              : n.cat?.includes('Water')
+              ? '💧'
+              : n.cat?.includes('Cloth')
+              ? '👕'
+              : '🤝',
+            color: n.urg === 'High' ? '#dc2626' : n.urg === 'Medium' ? '#f59e0b' : '#0d9488',
+          }));
+          return [...mapped, ...INDORE_NEEDS];
+        }
+      }
+    } catch {}
+    return INDORE_NEEDS;
+  });
+
+  useEffect(() => {
+    const handleNewNeed = (e: any) => {
+      const n = e.detail;
+      if (n) {
+        const item: NeedItem = {
+          id: n.id,
+          title: n.title,
+          category: (['Food', 'Medical', 'Shelter', 'Education', 'Water', 'Clothes'].includes(n.cat)
+            ? n.cat
+            : 'Other') as any,
+          urgency: n.urg === 'High' ? 'Critical' : n.urg === 'Medium' ? 'High' : 'Moderate',
+          location: n.land
+            ? `${n.land}, ${n.loc?.city || 'Indore'}`
+            : (n.loc?.address || `${n.loc?.city || 'Indore'}, MP`),
+          lat: Number(n.loc?.lat) || 22.7533,
+          lng: Number(n.loc?.lng) || 75.8937,
+          emoji: n.cat?.includes('Food')
+            ? '🍚'
+            : n.cat?.includes('Med')
+            ? '💊'
+            : n.cat?.includes('Water')
+            ? '💧'
+            : n.cat?.includes('Cloth')
+            ? '👕'
+            : '🤝',
+          color: n.urg === 'High' ? '#dc2626' : n.urg === 'Medium' ? '#f59e0b' : '#0d9488',
+        };
+        setLiveNeeds((prev) => [item, ...prev]);
+      }
+    };
+    window.addEventListener('sahaaye:need-submitted', handleNewNeed);
+    return () => window.removeEventListener('sahaaye:need-submitted', handleNewNeed);
+  }, []);
+
   useEffect(() => {
     (window as any).sahaayeVolunteerBridge = (id: string) => {
-      const need = INDORE_NEEDS.find((n) => n.id === id);
+      const need = liveNeeds.find((n) => n.id === id);
       if (need) {
         if (onVolunteer) onVolunteer(need);
         if (onToast) onToast(`🤝 Thank you! You offered help for: "${need.title}"`);
       }
     };
     (window as any).sahaayeSelectNeed = (id: string) => {
-      const need = INDORE_NEEDS.find((n) => n.id === id);
+      const need = liveNeeds.find((n) => n.id === id);
       if (need) setActiveNeed(need);
     };
     (window as any).sahaayeMoveCenter = (lat: number, lng: number) => {
@@ -350,7 +420,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       delete (window as any).sahaayeSelectNeed;
       delete (window as any).sahaayeMoveCenter;
     };
-  }, [onVolunteer, onToast]);
+  }, [liveNeeds, onVolunteer, onToast]);
 
   // Close category dropdown on outside click
   useEffect(() => {
@@ -369,7 +439,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
   // Compute needs with distance relative to current center
   const needsWithDistance = useMemo(() => {
-    return INDORE_NEEDS.map((need) => {
+    return liveNeeds.map((need) => {
       const dist = calculateDistanceKm(centerCoords[0], centerCoords[1], need.lat, need.lng);
       return {
         ...need,
@@ -377,7 +447,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         isInRange: dist <= radiusKm,
       };
     });
-  }, [centerCoords, radiusKm]);
+  }, [liveNeeds, centerCoords, radiusKm]);
 
   // Filtered needs by category and search
   const filteredNeeds = useMemo(() => {
