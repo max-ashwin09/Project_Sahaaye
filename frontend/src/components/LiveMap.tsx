@@ -15,6 +15,7 @@ import {
   Sparkles,
   Info,
   ChevronRight,
+  ChevronDown,
   Filter,
   Search,
   ExternalLink,
@@ -35,6 +36,18 @@ export interface NeedItem {
   emoji: string;
   color: string;
 }
+
+// ─── Category Items for Filter List ─────────────────────────────────────────────
+const CATEGORY_ITEMS = [
+  { label: 'All', color: '#64748b', emoji: '🌐' },
+  { label: 'Food', color: '#2563eb', emoji: '🍚' },
+  { label: 'Medical', color: '#e11d48', emoji: '💊' },
+  { label: 'Education', color: '#0d9488', emoji: '📚' },
+  { label: 'Shelter', color: '#f59e0b', emoji: '🏠' },
+  { label: 'Water', color: '#0284c7', emoji: '💧' },
+  { label: 'Elderly', color: '#7c3aed', emoji: '👴' },
+  { label: 'Clothes', color: '#10b981', emoji: '👕' },
+];
 
 // ─── Default Community Needs in Indore ──────────────────────────────────────────
 const INDORE_NEEDS: NeedItem[] = [
@@ -231,9 +244,11 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   const [autoFitBounds, setAutoFitBounds] = useState<boolean>(true);
   const [activeNeed, setActiveNeed] = useState<NeedItem | null>(null);
   const [showCustomise, setShowCustomise] = useState<boolean>(false);
+  const [showCategoryMenu, setShowCategoryMenu] = useState<boolean>(false);
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
+  const categoryMenuRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const streetLayerRef = useRef<L.TileLayer | null>(null);
   const satelliteBaseLayerRef = useRef<L.TileLayer | null>(null);
@@ -274,6 +289,21 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       delete (window as any).sahaayeMoveCenter;
     };
   }, [onVolunteer, onToast]);
+
+  // Close category dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target as Node)) {
+        setShowCategoryMenu(false);
+      }
+    };
+    if (showCategoryMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCategoryMenu]);
 
   // Compute needs with distance relative to current center
   const needsWithDistance = useMemo(() => {
@@ -416,43 +446,44 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
     centerMarkerRef.current = centerMarker;
 
-    // Click/tap on map: open confirmation popup first, then trigger movement
+    // Click/tap on map: show sleek micro-pill popup (< 1 sec) and smoothly move map
     map.on('click', (e) => {
       const origEvent = e.originalEvent as any;
       if (origEvent?.target?.closest?.('.leaflet-marker-icon, .leaflet-popup, .livemap-maptype-switcher')) return;
 
       const { lat, lng } = e.latlng;
 
-      const popupHtml = `
-        <div class="map-tap-prompt-card">
-          <div class="tap-prompt-header">
-            <span class="tap-prompt-pin-icon">📍</span>
-            <div>
-              <h4 class="tap-prompt-title">Selected Location</h4>
-              <p class="tap-prompt-coords">${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E</p>
-            </div>
-          </div>
-          <p class="tap-prompt-hint">Tap below to move search circle & map to this spot:</p>
-          <button
-            type="button"
-            class="tap-prompt-action-btn"
-            onclick="window.sahaayeMoveCenter(${lat}, ${lng})"
-          >
-            🎯 Move Center Here
-          </button>
-        </div>
-      `;
-
-      L.popup({
-        className: 'livemap-tap-prompt-popup',
-        closeButton: true,
+      // 1. Sleek micro-popup pill at tap point
+      const microPopup = L.popup({
+        className: 'livemap-micro-tap-popup',
+        closeButton: false,
         autoClose: true,
         closeOnClick: true,
-        offset: [0, -10],
+        offset: [0, -8],
       })
         .setLatLng([lat, lng])
-        .setContent(popupHtml)
+        .setContent(`
+          <div class="micro-tap-pill">
+            <span class="micro-pulse-dot"></span>
+            <span>📍 Moving here…</span>
+          </div>
+        `)
         .openOn(map);
+
+      // 2. Trigger center reposition & smooth map fly movement
+      setCenterCoords([lat, lng]);
+      setCenterName(`Location (${lat.toFixed(3)}, ${lng.toFixed(3)})`);
+      map.flyTo([lat, lng], map.getZoom(), {
+        duration: 0.55,
+        easeLinearity: 0.25,
+      });
+
+      // 3. Automatically dismiss the micro-popup in under 1 second (750ms)
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.closePopup(microPopup);
+        }
+      }, 750);
     });
 
     // Needs Layer Group
@@ -993,29 +1024,67 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
       {/* ─── Footer Legend & Info ─────────────────────────────────────────────── */}
       <div className="livemap-footer-bar">
-        <div className="footer-legend-items">
-          <span className="legend-title">Categories:</span>
-          {[
-            { label: 'Food', color: '#2563eb', emoji: '🍚' },
-            { label: 'Medical', color: '#e11d48', emoji: '💊' },
-            { label: 'Education', color: '#0d9488', emoji: '📚' },
-            { label: 'Shelter', color: '#f59e0b', emoji: '🏠' },
-            { label: 'Water', color: '#0284c7', emoji: '💧' },
-            { label: 'Elderly', color: '#7c3aed', emoji: '👴' },
-            { label: 'Clothes', color: '#10b981', emoji: '👕' },
-          ].map((cat) => (
-            <button
-              key={cat.label}
-              type="button"
-              className={`footer-legend-chip ${selectedCategory === cat.label ? 'active' : ''}`}
-              onClick={() =>
-                setSelectedCategory(selectedCategory === cat.label ? 'All' : cat.label)
-              }
-            >
-              <span className="legend-dot" style={{ background: cat.color }} />
-              <span>{cat.emoji} {cat.label}</span>
-            </button>
-          ))}
+        {/* Compact Click-to-Open Category List Dropdown */}
+        <div className="footer-category-dropdown-wrap" ref={categoryMenuRef}>
+          <button
+            type="button"
+            className={`footer-category-trigger-btn ${selectedCategory !== 'All' ? 'active-filter' : ''}`}
+            onClick={() => setShowCategoryMenu((prev) => !prev)}
+            aria-expanded={showCategoryMenu}
+            title="Click to view and filter categories"
+          >
+            <span className="trigger-icon">🏷️</span>
+            <span className="trigger-label">
+              <strong>Categories:</strong>{' '}
+              {selectedCategory === 'All'
+                ? 'All Categories (7)'
+                : `${CATEGORY_ITEMS.find((c) => c.label === selectedCategory)?.emoji || ''} ${selectedCategory}`}
+            </span>
+            <ChevronDown size={14} className={`trigger-chevron ${showCategoryMenu ? 'open' : ''}`} />
+          </button>
+
+          {/* Floating Dropdown List of Categories */}
+          {showCategoryMenu && (
+            <div className="footer-category-menu">
+              <div className="category-menu-header">
+                <span>Filter by Category</span>
+                <button
+                  type="button"
+                  className="category-menu-close"
+                  onClick={() => setShowCategoryMenu(false)}
+                  title="Close Menu"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="category-menu-list">
+                {CATEGORY_ITEMS.map((cat) => {
+                  const isSelected = selectedCategory === cat.label;
+                  return (
+                    <button
+                      key={cat.label}
+                      type="button"
+                      className={`category-menu-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedCategory(cat.label);
+                        setShowCategoryMenu(false);
+                        if (onToast) {
+                          onToast(cat.label === 'All' ? '🌐 Showing all categories' : `🏷️ Filtered by ${cat.emoji} ${cat.label}`);
+                        }
+                      }}
+                    >
+                      <span className="cat-item-left">
+                        <span className="cat-color-dot" style={{ background: cat.color }} />
+                        <span className="cat-emoji">{cat.emoji}</span>
+                        <span className="cat-name">{cat.label === 'All' ? 'All Categories (7)' : cat.label}</span>
+                      </span>
+                      {isSelected && <Check size={14} className="cat-check" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="footer-autofit-toggle">

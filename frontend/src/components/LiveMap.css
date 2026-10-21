@@ -857,88 +857,67 @@
   color: #0f172a;
 }
 
-/* ─── Map Tap Confirm Prompt Popup ─── */
-.livemap-tap-prompt-popup .leaflet-popup-content-wrapper {
-  border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.12);
-  border: 1px solid #cbd5e1;
-  padding: 0;
-  overflow: hidden;
+/* ─── Map Tap Sleek Micro-Popup (< 1 second auto-dismiss) ─── */
+.livemap-micro-tap-popup .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-.livemap-tap-prompt-popup .leaflet-popup-content {
-  margin: 0;
+.livemap-micro-tap-popup .leaflet-popup-tip-container {
+  display: none !important;
+}
+
+.livemap-micro-tap-popup .leaflet-popup-content {
+  margin: 0 !important;
   line-height: normal;
 }
 
-.map-tap-prompt-card {
-  padding: 12px 14px;
-  width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-family: inherit;
-  background: #ffffff;
-}
-
-.tap-prompt-header {
-  display: flex;
+.micro-tap-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-}
-
-.tap-prompt-pin-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-
-.tap-prompt-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 2px 0;
-  line-height: 1.2;
-}
-
-.tap-prompt-coords {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #64748b;
-  margin: 0;
-}
-
-.tap-prompt-hint {
-  font-size: 11px;
-  color: #475569;
-  margin: 0;
-  line-height: 1.35;
-}
-
-.tap-prompt-action-btn {
-  background: #2563eb;
-  color: #ffffff;
-  border: none;
-  border-radius: 7px;
-  padding: 7px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
-  transition: all 0.15s ease;
-  width: 100%;
+  background: rgba(15, 23, 42, 0.92);
+  color: #ffffff;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+  animation: microPillFade 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
-.tap-prompt-action-btn:hover {
-  background: #1d4ed8;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+.micro-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
 }
 
-.tap-prompt-action-btn:active {
-  transform: translateY(0);
+@keyframes microPillFade {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.88);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.92);
+  }
 }
 
 /* ─── Footer Legend & Info ─── */
@@ -953,52 +932,163 @@
   flex-wrap: wrap;
 }
 
-.footer-legend-items {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+/* ─── Footer Category Dropdown Menu ─── */
+.footer-category-dropdown-wrap {
+  position: relative;
+  display: inline-block;
 }
 
-.legend-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  margin-right: 2px;
-}
-
-.footer-legend-chip {
+.footer-category-trigger-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #475569;
+  border: 1.5px solid #cbd5e1;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #334155;
   cursor: pointer;
   transition: all 0.15s ease;
+  user-select: none;
 }
 
-.footer-legend-chip:hover {
+.footer-category-trigger-btn:hover {
   background: #f1f5f9;
-  border-color: #cbd5e1;
+  border-color: #94a3b8;
+  color: #0f172a;
 }
 
-.footer-legend-chip.active {
+.footer-category-trigger-btn.active-filter {
   background: #eff6ff;
-  border-color: #93c5fd;
+  border-color: #2563eb;
   color: #1d4ed8;
   font-weight: 700;
 }
 
-.legend-dot {
-  width: 8px;
-  height: 8px;
+.trigger-icon {
+  font-size: 13px;
+}
+
+.trigger-label strong {
+  color: #0f172a;
+}
+
+.trigger-chevron {
+  transition: transform 0.2s ease;
+  color: #64748b;
+}
+
+.trigger-chevron.open {
+  transform: rotate(180deg);
+}
+
+.footer-category-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 220px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1);
+  padding: 6px;
+  z-index: 1050;
+  animation: catMenuSlideUp 0.18s ease-out;
+}
+
+@keyframes catMenuSlideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.category-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.category-menu-close {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.category-menu-close:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.category-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.category-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  background: transparent;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 12px;
+  color: #334155;
+  transition: all 0.12s ease;
+  text-align: left;
+}
+
+.category-menu-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.category-menu-item.selected {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.cat-item-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cat-color-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cat-emoji {
+  font-size: 13px;
+}
+
+.cat-name {
+  font-size: 12px;
+}
+
+.cat-check {
+  color: #2563eb;
 }
 
 .footer-autofit-toggle .autofit-label {
