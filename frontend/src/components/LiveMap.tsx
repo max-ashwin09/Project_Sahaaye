@@ -688,34 +688,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             )}
           </div>
 
-          {/* Map Layer Switcher (Streets vs Satellite Hybrid vs Terrain) */}
-          <div className="livemap-layer-switcher" role="group" aria-label="Map Tile Layers">
-            <button
-              type="button"
-              className={`layer-switch-btn ${mapType === 'streets' ? 'active' : ''}`}
-              onClick={() => setMapType('streets')}
-              title="Streets, highways & buildings view"
-            >
-              🗺️ Streets
-            </button>
-            <button
-              type="button"
-              className={`layer-switch-btn ${mapType === 'satellite' ? 'active' : ''}`}
-              onClick={() => setMapType('satellite')}
-              title="Real satellite aerial imagery with actual houses and road labels"
-            >
-              🛰️ Satellite
-            </button>
-            <button
-              type="button"
-              className={`layer-switch-btn ${mapType === 'terrain' ? 'active' : ''}`}
-              onClick={() => setMapType('terrain')}
-              title="Standard topographic view"
-            >
-              🏔️ Standard
-            </button>
-          </div>
-
           {/* Category Dropdown */}
           <div className="livemap-cat-filter">
             <Filter size={14} className="filter-icon" />
@@ -854,6 +826,37 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       {/* ─── Leaflet Map Canvas ───────────────────────────────────────────────── */}
       <div className="livemap-viewport-wrapper">
         <div ref={containerRef} className="livemap-canvas-element" />
+
+        {/* Floating Highlighted Layer Switcher (Streets / Satellite / Standard) */}
+        <div className="livemap-map-floating-layers" role="group" aria-label="Map Tile Layers">
+          <button
+            type="button"
+            className={`floating-layer-btn ${mapType === 'streets' ? 'active' : ''}`}
+            onClick={() => setMapType('streets')}
+            title="Streets & highways view"
+          >
+            <span className="layer-icon">🗺️</span>
+            <span className="layer-name">Streets</span>
+          </button>
+          <button
+            type="button"
+            className={`floating-layer-btn ${mapType === 'satellite' ? 'active' : ''}`}
+            onClick={() => setMapType('satellite')}
+            title="Satellite view with actual houses & road names"
+          >
+            <span className="layer-icon">🛰️</span>
+            <span className="layer-name">Satellite</span>
+          </button>
+          <button
+            type="button"
+            className={`floating-layer-btn ${mapType === 'terrain' ? 'active' : ''}`}
+            onClick={() => setMapType('terrain')}
+            title="Standard topographic view"
+          >
+            <span className="layer-icon">🏔️</span>
+            <span className="layer-name">Standard</span>
+          </button>
+        </div>
 
         {/* Floating Google-style Map Controls Overlay */}
         <div className="livemap-floating-overlay">
