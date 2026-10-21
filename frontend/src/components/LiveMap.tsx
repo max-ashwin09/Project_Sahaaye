@@ -869,12 +869,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             <span className="livemap-pulse-dot"></span>
             <span className="livemap-pulse-text">LIVE</span>
           </div>
-          <div>
-            <h3 className="livemap-main-title">Live Map</h3>
-            <p className="livemap-sub-title">
-              Interactive highways, street names & satellite houses with real-time distance circle
-            </p>
-          </div>
+          <h3 className="livemap-main-title">Live Map</h3>
         </div>
 
         {/* View mode toggle & actions */}
