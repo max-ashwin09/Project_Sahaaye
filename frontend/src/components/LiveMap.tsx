@@ -36,19 +36,6 @@ export interface NeedItem {
   color: string;
 }
 
-// ─── Indore Quick Hub Locations ────────────────────────────────────────────────
-const INDORE_HUBS = [
-  { name: 'Vijay Nagar', lat: 22.7533, lng: 75.8937 },
-  { name: 'Rajwada', lat: 22.7196, lng: 75.8577 },
-  { name: 'Palasia', lat: 22.7244, lng: 75.8839 },
-  { name: 'Scheme 54', lat: 22.7584, lng: 75.8890 },
-  { name: 'Bhanwarkua', lat: 22.6891, lng: 75.8647 },
-  { name: 'Khajrana', lat: 22.7303, lng: 75.9080 },
-  { name: 'Annapurna', lat: 22.7012, lng: 75.8362 },
-  { name: 'Super Corridor', lat: 22.7750, lng: 75.8300 },
-  { name: 'Rau', lat: 22.6450, lng: 75.8190 },
-];
-
 // ─── Default Community Needs in Indore ──────────────────────────────────────────
 const INDORE_NEEDS: NeedItem[] = [
   {
@@ -583,15 +570,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
     setManualInput(String(val));
   };
 
-  const handleHubSelect = (hub: { name: string; lat: number; lng: number }) => {
-    setCenterCoords([hub.lat, hub.lng]);
-    setCenterName(`${hub.name}, Indore`);
-    if (mapRef.current) {
-      mapRef.current.flyTo([hub.lat, hub.lng], 14, { duration: 0.8 });
-    }
-    if (onToast) onToast(`📍 Center moved to ${hub.name}!`);
-  };
-
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
       if (onToast) onToast('Geolocation is not supported by your browser');
@@ -716,23 +694,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
           >
             {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
-        </div>
-      </div>
-
-      {/* ─── Indore Quick Hub Chips Row ───────────────────────────────────────── */}
-      <div className="livemap-hubs-bar">
-        <span className="hubs-label">📍 Indore Hubs:</span>
-        <div className="hubs-chip-list">
-          {INDORE_HUBS.map((hub) => (
-            <button
-              key={hub.name}
-              type="button"
-              className={`hub-chip-btn ${centerName.includes(hub.name) ? 'active' : ''}`}
-              onClick={() => handleHubSelect(hub)}
-            >
-              {hub.name}
-            </button>
-          ))}
         </div>
       </div>
 
