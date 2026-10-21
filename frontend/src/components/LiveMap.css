@@ -857,6 +857,90 @@
   color: #0f172a;
 }
 
+/* ─── Map Tap Confirm Prompt Popup ─── */
+.livemap-tap-prompt-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.12);
+  border: 1px solid #cbd5e1;
+  padding: 0;
+  overflow: hidden;
+}
+
+.livemap-tap-prompt-popup .leaflet-popup-content {
+  margin: 0;
+  line-height: normal;
+}
+
+.map-tap-prompt-card {
+  padding: 12px 14px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: inherit;
+  background: #ffffff;
+}
+
+.tap-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tap-prompt-pin-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.tap-prompt-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 2px 0;
+  line-height: 1.2;
+}
+
+.tap-prompt-coords {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0;
+}
+
+.tap-prompt-hint {
+  font-size: 11px;
+  color: #475569;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.tap-prompt-action-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.tap-prompt-action-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.tap-prompt-action-btn:active {
+  transform: translateY(0);
+}
+
 /* ─── Footer Legend & Info ─── */
 .livemap-footer-bar {
   display: flex;

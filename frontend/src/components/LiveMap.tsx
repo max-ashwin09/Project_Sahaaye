@@ -256,9 +256,22 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       const need = INDORE_NEEDS.find((n) => n.id === id);
       if (need) setActiveNeed(need);
     };
+    (window as any).sahaayeMoveCenter = (lat: number, lng: number) => {
+      if (mapRef.current) {
+        mapRef.current.closePopup();
+        mapRef.current.flyTo([lat, lng], Math.max(mapRef.current.getZoom(), 14), {
+          duration: 0.8,
+          easeLinearity: 0.25,
+        });
+      }
+      setCenterCoords([lat, lng]);
+      setCenterName(`Custom Point (${lat.toFixed(3)}, ${lng.toFixed(3)})`);
+      if (onToast) onToast(`📍 Search center moved to: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+    };
     return () => {
       delete (window as any).sahaayeVolunteerBridge;
       delete (window as any).sahaayeSelectNeed;
+      delete (window as any).sahaayeMoveCenter;
     };
   }, [onVolunteer, onToast]);
 
@@ -291,14 +304,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       return matchesCategory && matchesSearch;
     });
   }, [needsWithDistance, selectedCategory, searchQuery]);
-
-  const inRangeCount = useMemo(() => {
-    return filteredNeeds.filter((n) => n.isInRange).length;
-  }, [filteredNeeds]);
-
-  const coverageAreaSqKm = useMemo(() => {
-    return (Math.PI * radiusKm * radiusKm).toFixed(1);
-  }, [radiusKm]);
 
   // ─── Initialize Leaflet Map ──────────────────────────────────────────────────
   useEffect(() => {
@@ -411,12 +416,43 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
     centerMarkerRef.current = centerMarker;
 
-    // Click map to reposition center
+    // Click/tap on map: open confirmation popup first, then trigger movement
     map.on('click', (e) => {
+      const origEvent = e.originalEvent as any;
+      if (origEvent?.target?.closest?.('.leaflet-marker-icon, .leaflet-popup, .livemap-maptype-switcher')) return;
+
       const { lat, lng } = e.latlng;
-      setCenterCoords([lat, lng]);
-      setCenterName(`Selected Location (${lat.toFixed(3)}, ${lng.toFixed(3)})`);
-      if (onToast) onToast(`🎯 Search center updated to: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+
+      const popupHtml = `
+        <div class="map-tap-prompt-card">
+          <div class="tap-prompt-header">
+            <span class="tap-prompt-pin-icon">📍</span>
+            <div>
+              <h4 class="tap-prompt-title">Selected Location</h4>
+              <p class="tap-prompt-coords">${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E</p>
+            </div>
+          </div>
+          <p class="tap-prompt-hint">Tap below to move search circle & map to this spot:</p>
+          <button
+            type="button"
+            class="tap-prompt-action-btn"
+            onclick="window.sahaayeMoveCenter(${lat}, ${lng})"
+          >
+            🎯 Move Center Here
+          </button>
+        </div>
+      `;
+
+      L.popup({
+        className: 'livemap-tap-prompt-popup',
+        closeButton: true,
+        autoClose: true,
+        closeOnClick: true,
+        offset: [0, -10],
+      })
+        .setLatLng([lat, lng])
+        .setContent(popupHtml)
+        .openOn(map);
     });
 
     // Needs Layer Group
@@ -818,17 +854,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             </div>
           )}
         </div>
-
-        {/* Right side: Compact inline stats */}
-        <div className="compact-dist-right">
-          <div className="compact-stats-pill">
-            <span className="compact-stat-num"><strong>{radiusKm} km</strong></span>
-            <span className="compact-stat-dot">•</span>
-            <span className="compact-stat-sub">~{coverageAreaSqKm} km²</span>
-            <span className="compact-stat-dot">•</span>
-            <span className="compact-stat-inrange">🎯 {inRangeCount} / {filteredNeeds.length} in circle</span>
-          </div>
-        </div>
       </div>
 
       {/* ─── Leaflet Map Canvas ───────────────────────────────────────────────── */}
@@ -911,11 +936,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
               <RotateCcw size={15} />
             </button>
           </div>
-        </div>
-
-        {/* Floating Helper Banner */}
-        <div className="livemap-guide-pill">
-          <span>👆 <strong>Touch / Drag:</strong> Move map &nbsp;|&nbsp; <strong>Click:</strong> Move circle center &nbsp;|&nbsp; <strong>Pin:</strong> Tap to view details</span>
         </div>
 
         {/* Active Need Floating Card (If selected) */}
