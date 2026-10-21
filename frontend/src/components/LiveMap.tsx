@@ -290,8 +290,8 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringControlsRef = useRef<boolean>(false);
 
-  // Show floating controls and auto-hide after 3 seconds of inactivity
-  const showControlsTemporarily = useCallback((durationMs = 3000) => {
+  // Show floating controls and auto-hide after 2 seconds of inactivity
+  const showControlsTemporarily = useCallback((durationMs = 2000) => {
     setControlsVisible(true);
     if (hideControlsTimerRef.current) {
       clearTimeout(hideControlsTimerRef.current);
@@ -317,7 +317,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
   const handleControlsMouseLeave = useCallback(() => {
     isHoveringControlsRef.current = false;
-    showControlsTemporarily(3000);
+    showControlsTemporarily(2000);
   }, [showControlsTemporarily]);
 
   // Setup global volunteer bridge for Leaflet popup buttons
@@ -418,7 +418,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
     // Map movement / zoom / drag triggers floating controls auto-hide popup
     const handleMapInteraction = () => {
-      showControlsTemporarily(3000);
+      showControlsTemporarily(2000);
     };
     map.on('movestart move moveend zoomstart zoom zoomend dragstart drag dragend', handleMapInteraction);
 
@@ -509,9 +509,9 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
     centerMarkerRef.current = centerMarker;
 
-    // Click/tap on map: show sleek micro-pill popup (< 1 sec) and smoothly move map
+    // Click/tap on map: show sleek micro-pill popup (2 sec) and smoothly move map
     map.on('click', (e) => {
-      showControlsTemporarily(3000);
+      showControlsTemporarily(2000);
       const origEvent = e.originalEvent as any;
       if (origEvent?.target?.closest?.('.leaflet-marker-icon, .leaflet-popup, .livemap-maptype-switcher')) return;
 
@@ -542,12 +542,12 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         easeLinearity: 0.25,
       });
 
-      // 3. Automatically dismiss the micro-popup in exactly 1 second (1000ms)
+      // 3. Automatically dismiss the micro-popup in exactly 2 seconds (2000ms)
       setTimeout(() => {
         if (mapRef.current) {
           mapRef.current.closePopup(microPopup);
         }
-      }, 1000);
+      }, 2000);
     });
 
     // Needs Layer Group
@@ -575,7 +575,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       if (target?.closest?.('.livemap-map-floating-layers, .livemap-floating-overlay')) {
         return;
       }
-      showControlsTemporarily(3000);
+      showControlsTemporarily(2000);
     };
 
     wrapper.addEventListener('mousemove', handleWrapperPointer, { passive: true });
@@ -732,7 +732,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   };
 
   const handleLocateMe = () => {
-    showControlsTemporarily(3000);
+    showControlsTemporarily(2000);
     if (!navigator.geolocation) {
       if (onToast) onToast('Geolocation is not supported by your browser');
       return;
@@ -759,7 +759,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   };
 
   const handleResetToIndore = () => {
-    showControlsTemporarily(3000);
+    showControlsTemporarily(2000);
     setCenterCoords([22.7533, 75.8937]);
     setCenterName('Vijay Nagar, Indore');
     setRadiusKm(3);
@@ -782,12 +782,12 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
   const zoomIn = () => {
     if (mapRef.current) mapRef.current.zoomIn();
-    showControlsTemporarily(3000);
+    showControlsTemporarily(2000);
   };
 
   const zoomOut = () => {
     if (mapRef.current) mapRef.current.zoomOut();
-    showControlsTemporarily(3000);
+    showControlsTemporarily(2000);
   };
 
   return (
@@ -1005,7 +1005,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             className={`floating-layer-btn ${mapType === 'streets' ? 'active' : ''}`}
             onClick={() => {
               setMapType('streets');
-              showControlsTemporarily(3000);
+              showControlsTemporarily(2000);
             }}
             title="Streets & highways view"
           >
@@ -1019,7 +1019,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             className={`floating-layer-btn ${mapType === 'satellite' ? 'active' : ''}`}
             onClick={() => {
               setMapType('satellite');
-              showControlsTemporarily(3000);
+              showControlsTemporarily(2000);
             }}
             title="Satellite view with actual houses & road names"
           >
@@ -1033,7 +1033,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
             className={`floating-layer-btn ${mapType === 'terrain' ? 'active' : ''}`}
             onClick={() => {
               setMapType('terrain');
-              showControlsTemporarily(3000);
+              showControlsTemporarily(2000);
             }}
             title="Standard topographic view"
           >
