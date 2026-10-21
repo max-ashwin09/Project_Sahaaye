@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReportNeed from './ReportNeed';
 import LiveMap from '../components/LiveMap';
+import { LocationSelector } from '../components/LocationSelector';
+import { LocationPromptBanner } from '../components/LocationPromptBanner';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
+import { useNearbyNeeds } from '../hooks/useNearbyNeeds';
 import {
   LayoutDashboard,
   MapPin,
@@ -348,6 +352,15 @@ const Dashboard: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [needsList, setNeedsList] = useState<Need[]>(NEEDS);
+  const { location: selectedLocation, filterToast, clearFilterToast } = useSelectedLocation();
+  const { needs: nearbyNeedsList, isLoading: isNeedsLoading } = useNearbyNeeds();
+
+  useEffect(() => {
+    if (filterToast) {
+      showToast(`📍 ${filterToast}`);
+      clearFilterToast();
+    }
+  }, [filterToast, clearFilterToast]);
   const [currentUser, setCurrentUser] = useState<{ name: string; role: string; avatar: string } | null>(() => {
     try {
       const stored = localStorage.getItem('sahaaye_user');
@@ -567,19 +580,7 @@ const Dashboard: React.FC = () => {
               <span className="download-topbar-badge">{apkInfo?.fileSizeMb || '25 MB'}</span>
             </a>
 
-            <button
-              className="location-btn ripple-container"
-              onClick={(e) => { addRipple(e); showToast('📍 Location: Indore, MP'); }}
-            >
-              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
-              <span>Indore, MP</span>
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </button>
+            <LocationSelector onToast={showToast} />
 
             <div className="icon-btn ripple-container" onClick={(e) => { addRipple(e); showToast(currentUser ? '🔔 12 new notifications' : '🔔 Please login to view notifications'); }}>
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -616,6 +617,17 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </header>
+
+        {/* ── LOCATION & STATE LANGUAGE NOTIFICATION PROMPTS ─────────────── */}
+        <LocationPromptBanner
+          onOpenSelector={() => {
+            const locBtn = document.querySelector('.location-btn') as HTMLButtonElement;
+            locBtn?.click();
+          }}
+          onLanguageSwitch={(lang) => {
+            showToast(lang === 'hi' ? '🇮🇳 भाषा हिंदी में सेट हो गई' : 'Language set to English');
+          }}
+        />
 
         {/* ── PAGE CONTENT ───────────────────────────────────────────────── */}
         <main className="page-content">
@@ -778,9 +790,13 @@ const Dashboard: React.FC = () => {
 
           {/* ── STAT CARDS ──────────────────────────────────────────────── */}
           <div className="stats-row">
-            {STATS.map((stat) => (
-              <StatCardItem key={stat.id} stat={stat} onClick={() => handleStatClick(stat)} />
-            ))}
+            {STATS.map((stat) => {
+              const dynamicStat =
+                stat.id === 'nearby' ? { ...stat, value: nearbyNeedsList.length } : stat;
+              return (
+                <StatCardItem key={stat.id} stat={dynamicStat} onClick={() => handleStatClick(dynamicStat)} />
+              );
+            })}
           </div>
 
           {/* ── MAIN GRID (Needs / Map / Quick Actions) ──────────────────── */}
@@ -789,39 +805,87 @@ const Dashboard: React.FC = () => {
             {/* Needs Near You */}
             <div className="card">
               <div className="card-header">
-                <span className="card-title">Needs Near You</span>
+                <div>
+                  <span className="card-title">Needs Near You ({nearbyNeedsList.length})</span>
+                  <div style={{ fontSize: 11, color: '#0d9488', fontWeight: 600, marginTop: 2 }}>
+                    📍 {selectedLocation.area ? `${selectedLocation.area}, ` : ''}{selectedLocation.city} ·{' '}
+                    {selectedLocation.radiusKm === 0 ? 'Whole city' : `${selectedLocation.radiusKm} km radius`}
+                  </div>
+                </div>
                 <button className="view-all-btn" onClick={() => { handleNav('nearby'); }}>
                   View All →
                 </button>
               </div>
-              <div className="needs-list">
-                {needsList.map((need) => (
-                  <div
-                    key={need.id}
-                    className="need-item ripple-container"
-                    onClick={(e) => { addRipple(e); showToast(`📌 ${need.title}`); }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="need-thumb">{need.emoji}</div>
-                    <div className="need-body">
-                      <div className="need-title">{need.title}</div>
-                      <div className="need-loc">📍 {need.location}</div>
-                      <div className="need-loc">{need.timeAgo}</div>
-                    </div>
-                    <span
-                      className="need-tag"
-                      style={{
-                        color: need.tagColor,
-                        borderColor: need.tagBorder,
-                        background: need.tagBg,
-                      }}
-                    >
-                      {need.tagLabel}
-                    </span>
+
+              {isNeedsLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 8 }}>
+                  {[1, 2, 3].map((n) => (
+                    <div key={n} className="skeleton-box" style={{ height: 62, width: '100%' }} />
+                  ))}
+                </div>
+              ) : nearbyNeedsList.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#64748b' }}>
+                  <div style={{ fontSize: 28, marginBottom: 6 }}>📍</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1e293b' }}>
+                    No needs reported within {selectedLocation.radiusKm === 0 ? 'city limits' : `${selectedLocation.radiusKm} km`}
                   </div>
-                ))}
-              </div>
+                  <p style={{ fontSize: 12, margin: '6px 0 14px', color: '#64748b', lineHeight: 1.4 }}>
+                    Be the first volunteer to report a community need in {selectedLocation.city}!
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleNav('report')}
+                    style={{
+                      background: '#0d9488',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + Report Need in {selectedLocation.city}
+                  </button>
+                </div>
+              ) : (
+                <div className="needs-list">
+                  {nearbyNeedsList.map((need) => (
+                    <div
+                      key={need.id}
+                      className="need-item ripple-container"
+                      onClick={(e) => { addRipple(e); showToast(`📌 ${need.title}`); }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="need-thumb">{need.emoji}</div>
+                      <div className="need-body">
+                        <div className="need-title">{need.title}</div>
+                        <div className="need-loc">
+                          📍 {need.location}
+                          {need.distanceKm !== undefined && (
+                            <span style={{ color: '#0d9488', fontWeight: 600, marginLeft: 4 }}>
+                              ({need.distanceKm} km away)
+                            </span>
+                          )}
+                        </div>
+                        <div className="need-loc">{need.timeAgo}</div>
+                      </div>
+                      <span
+                        className="need-tag"
+                        style={{
+                          color: need.tagColor,
+                          borderColor: need.tagBorder,
+                          background: need.tagBg,
+                        }}
+                      >
+                        {need.tagLabel}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Interactive Live Map & Distance Radar */}

@@ -22,6 +22,7 @@ import {
   Navigation,
   X,
 } from 'lucide-react';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
 
 export interface NeedItem {
   id: string;
@@ -245,6 +246,28 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   const [activeNeed, setActiveNeed] = useState<NeedItem | null>(null);
   const [showCustomise, setShowCustomise] = useState<boolean>(false);
   const [showCategoryMenu, setShowCategoryMenu] = useState<boolean>(false);
+
+  const { location: globalLocation } = useSelectedLocation();
+
+  // Sync LiveMap when global location changes in the header
+  useEffect(() => {
+    if (globalLocation) {
+      const newLat = globalLocation.lat;
+      const newLng = globalLocation.lng;
+      setCenterCoords([newLat, newLng]);
+      setCenterName(`${globalLocation.area ? `${globalLocation.area}, ` : ''}${globalLocation.city}`);
+      if (globalLocation.radiusKm > 0) {
+        setRadiusKm(globalLocation.radiusKm);
+        setManualInput(String(globalLocation.radiusKm));
+      }
+      if (mapRef.current) {
+        mapRef.current.flyTo([newLat, newLng], Math.max(mapRef.current.getZoom(), 13), {
+          duration: 0.8,
+          easeLinearity: 0.25,
+        });
+      }
+    }
+  }, [globalLocation.city, globalLocation.area, globalLocation.lat, globalLocation.lng, globalLocation.radiusKm]);
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);

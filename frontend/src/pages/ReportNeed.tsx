@@ -26,6 +26,7 @@ import { ManualLocationPicker } from '../components/ManualLocationPicker';
 import { DuplicateWarningModal } from '../components/DuplicateWarningModal';
 import { StatusTracker, NeedStatus, StatusHistoryEntry } from '../components/StatusTracker';
 import { TRANSLATIONS, LanguageCode } from '../utils/i18n';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
 
 interface ReportNeedProps {
   onSuccess?: () => void;
@@ -39,6 +40,7 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
   // ─── Language & i18n ────────────────────────────────────────────────────────
   const [lang, setLang] = useState<LanguageCode>('en');
   const t = TRANSLATIONS[lang];
+  const { city: headerCity } = useSelectedLocation();
 
   // ─── Form State ─────────────────────────────────────────────────────────────
   const [title, setTitle] = useState('');
@@ -787,6 +789,28 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
             {isLowAccuracy && (
               <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>
                 {t.lowAccuracyWarning}
+              </div>
+            )}
+
+            {address && headerCity && !address.toLowerCase().includes(headerCity.toLowerCase()) && (
+              <div
+                style={{
+                  fontSize: 11.5,
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  color: '#92400e',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  marginTop: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                <span>
+                  Your GPS location differs from the selected header city (<strong>{headerCity}</strong>). The need will be reported at your verified GPS location.
+                </span>
               </div>
             )}
           </div>

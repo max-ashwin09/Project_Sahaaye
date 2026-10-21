@@ -1,2 +1,1 @@
-// Module: location
-export {};
+export { locationRouter } from './router';
