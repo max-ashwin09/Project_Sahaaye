@@ -19,12 +19,14 @@ import {
   Clock,
   ArrowRight,
   Info,
+  EyeOff,
 } from 'lucide-react';
 import { TRANSLATIONS } from '../utils/i18n';
 import { useLanguageStore } from '../stores/useLanguageStore';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { LiveCameraModal, CameraMediaItem } from '../components/LiveCameraModal';
 import { reverseGeocodeToLocation } from '../services/geocoding';
+import { blurAllFacesOnCanvas } from '../utils/faceDetector';
 
 interface ReportNeedProps {
   onSuccess?: () => void;
@@ -75,6 +77,13 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
   // ─── Submission & Success State ───────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedNeed, setSubmittedNeed] = useState<any | null>(null);
+
+  // ─── Toast Feedback ───────────────────────────────────────────────────────
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3200);
+  }, []);
 
   // Categories list
   const CATEGORIES = useMemo(
@@ -207,6 +216,48 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
       { enableHighAccuracy: true, maximumAge: 0, timeout: 6000 }
     );
   }, [headerCity, t.gpsRequiredNotice]);
+
+  // ─── Manual / Retrigger Face Blur on Photo ───────────────────────────────
+  const [isProcessingBlur, setIsProcessingBlur] = useState<string | null>(null);
+
+  const handleBlurCapturedPhoto = async (id: string) => {
+    const item = mediaItems.find((m) => m.id === id);
+    if (!item || item.type !== 'photo') return;
+
+    setIsProcessingBlur(id);
+    try {
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = () => res(true);
+        img.onerror = rej;
+        img.src = item.dataUrl;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const count = await blurAllFacesOnCanvas(canvas, true);
+        const updatedUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+        setMediaItems((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, dataUrl: updatedUrl } : m))
+        );
+
+        if (count > 0) {
+          showToast(lang === 'hi' ? `✓ ${count} चेहरा(े) सफलतापूर्वक ब्लर किए गए!` : `✓ ${count} face(s) successfully blurred!`);
+        } else {
+          showToast(lang === 'hi' ? '✓ गोपनीयता ब्लर लागू कर दिया गया।' : '✓ Privacy blur applied to photo.');
+        }
+      }
+    } catch (err) {
+      console.warn('Blur photo error:', err);
+    } finally {
+      setIsProcessingBlur(null);
+    }
+  };
 
   // ─── 5. Step Validation & Navigation ──────────────────────────────────────
   const handleNext = () => {
@@ -515,6 +566,27 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
         )}
       </div>
 
+      {/* ── Action Feedback Toast ── */}
+      {toastMessage && (
+        <div
+          style={{
+            background: '#042f2e',
+            color: '#2dd4bf',
+            borderBottom: '1px solid #0d9488',
+            padding: '8px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            animation: 'fadeIn 0.2s ease',
+          }}
+        >
+          <CheckCircle2 size={16} color="#2dd4bf" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* ── Restored Draft Banner ── */}
       {draftRestored && (
         <div
@@ -756,10 +828,46 @@ export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onV
                           alignItems: 'center',
                           justifyContent: 'center',
                           cursor: 'pointer',
+                          zIndex: 2,
                         }}
                       >
                         <Trash2 size={12} />
                       </button>
+
+                      {/* Manual Blur Face Privacy Action on Captured Photo */}
+                      {item.type === 'photo' && (
+                        <button
+                          type="button"
+                          onClick={() => handleBlurCapturedPhoto(item.id)}
+                          disabled={isProcessingBlur === item.id}
+                          title={lang === 'hi' ? 'चेहरे ब्लर करें (गोपनीयता)' : 'Blur faces for privacy'}
+                          style={{
+                            position: 'absolute',
+                            bottom: 4,
+                            left: 4,
+                            padding: '3px 6px',
+                            borderRadius: 6,
+                            background: 'rgba(15, 23, 42, 0.88)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.4)',
+                            fontSize: 10,
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            cursor: isProcessingBlur === item.id ? 'wait' : 'pointer',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2,
+                          }}
+                        >
+                          <EyeOff size={11} />
+                          <span>
+                            {isProcessingBlur === item.id
+                              ? (lang === 'hi' ? 'ब्लर...' : 'Blurring...')
+                              : (lang === 'hi' ? 'ब्लर चेहरा' : 'Blur Face')}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

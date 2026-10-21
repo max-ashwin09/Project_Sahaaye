@@ -14,9 +14,11 @@ import {
   Square,
   Sparkles,
   ShieldAlert,
+  EyeOff,
 } from 'lucide-react';
 import { TRANSLATIONS } from '../utils/i18n';
 import { useLanguageStore } from '../stores/useLanguageStore';
+import { preloadFaceDetector, blurAllFacesOnCanvas } from '../utils/faceDetector';
 
 export interface CameraMediaItem {
   id: string;
@@ -163,6 +165,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       initCamera(facingMode);
+      preloadFaceDetector().catch(() => {});
     } else {
       // Cleanup stream when closed
       if (streamRef.current) {
@@ -248,69 +251,6 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
     });
   };
 
-  // ─── 6. Face Blur on Canvas ───────────────────────────────────────────────
-  const applyFaceBlur = async (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
-    if (!('FaceDetector' in window)) {
-      showToast(t.faceDetectorUnsupported);
-      return;
-    }
-
-    try {
-      const detector = new (window as any).FaceDetector({ fastMode: true, maxDetectedFaces: 10 });
-      const faces = await detector.detect(canvas);
-      if (faces && faces.length > 0) {
-        faces.forEach((face: any) => {
-          const { x, y, width, height } = face.boundingBox;
-          const pad = Math.round(width * 0.15);
-          const bx = Math.max(0, Math.round(x - pad));
-          const by = Math.max(0, Math.round(y - pad));
-          const bw = Math.min(canvas.width - bx, Math.round(width + pad * 2));
-          const bh = Math.min(canvas.height - by, Math.round(height + pad * 2));
-
-          pixelateRegion(ctx, bx, by, bw, bh, 16);
-        });
-      }
-    } catch (err) {
-      console.warn('FaceDetector error:', err);
-      showToast(t.faceDetectorUnsupported);
-    }
-  };
-
-  const pixelateRegion = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    pixelSize = 16
-  ) => {
-    try {
-      const imgData = ctx.getImageData(x, y, w, h);
-      const data = imgData.data;
-
-      for (let py = 0; py < h; py += pixelSize) {
-        for (let px = 0; px < w; px += pixelSize) {
-          const pIndex = (py * w + px) * 4;
-          const r = data[pIndex];
-          const g = data[pIndex + 1];
-          const b = data[pIndex + 2];
-          const a = data[pIndex + 3];
-
-          for (let subY = 0; subY < pixelSize && py + subY < h; subY++) {
-            for (let subX = 0; subX < pixelSize && px + subX < w; subX++) {
-              const targetIndex = ((py + subY) * w + (px + subX)) * 4;
-              data[targetIndex] = r;
-              data[targetIndex + 1] = g;
-              data[targetIndex + 2] = b;
-              data[targetIndex + 3] = a;
-            }
-          }
-        }
-      }
-      ctx.putImageData(imgData, x, y);
-    } catch {}
-  };
-
   // ─── 7. Capture Photo with Geo-Stamp ──────────────────────────────────────
   const handleCapturePhoto = async () => {
     if (captures.length >= 5) {
@@ -343,9 +283,22 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
     // Draw video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Optional face blur
+    // High-reliability multi-engine Face Blur (Native + Pico.js + Skin cluster fallback)
     if (blurFaces) {
-      await applyFaceBlur(canvas, ctx);
+      const blurredCount = await blurAllFacesOnCanvas(canvas, true);
+      if (blurredCount > 0) {
+        showToast(
+          lang === 'hi'
+            ? `✓ ${blurredCount} चेहरा(े) सफलतापूर्वक ब्लर किए गए`
+            : `✓ ${blurredCount} face(s) automatically blurred for privacy`
+        );
+      } else {
+        showToast(
+          lang === 'hi'
+            ? '✓ प्राइवेसी ब्लर लागू किया गया'
+            : '✓ Privacy blur applied'
+        );
+      }
     }
 
     // Burn Geo-stamp onto bottom of photo
@@ -507,9 +460,44 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
     setIsRecording(false);
   };
 
-  // ─── 9. Done / Remove Items ───────────────────────────────────────────────
+  // ─── 9. Done / Remove / Blur Items ───────────────────────────────────────────────
   const handleRemoveCapture = (id: string) => {
     setCaptures((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleBlurCapture = async (id: string) => {
+    const item = captures.find((c) => c.id === id);
+    if (!item || item.type !== 'photo') return;
+
+    try {
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = () => res(true);
+        img.onerror = rej;
+        img.src = item.dataUrl;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const count = await blurAllFacesOnCanvas(canvas, true);
+        const updatedUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+        setCaptures((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, dataUrl: updatedUrl } : c))
+        );
+        showToast(
+          count > 0
+            ? (lang === 'hi' ? `✓ ${count} चेहरा(े) ब्लर किए गए` : `✓ ${count} face(s) blurred`)
+            : (lang === 'hi' ? '✓ प्राइवेसी ब्लर लगाया गया' : '✓ Privacy blur applied')
+        );
+      }
+    } catch (err) {
+      console.warn('Blur capture error:', err);
+    }
   };
 
   const handleFinish = () => {
@@ -960,6 +948,32 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
                 >
                   ✕
                 </button>
+                {/* Manual Blur button for photo */}
+                {item.type === 'photo' && (
+                  <button
+                    type="button"
+                    onClick={() => handleBlurCapture(item.id)}
+                    title={lang === 'hi' ? 'चेहरा ब्लर करें' : 'Blur faces for privacy'}
+                    style={{
+                      position: 'absolute',
+                      bottom: 2,
+                      left: 2,
+                      width: 20,
+                      height: 20,
+                      borderRadius: 4,
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      border: '1px solid rgba(56, 189, 248, 0.5)',
+                      color: '#38bdf8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      backdropFilter: 'blur(4px)',
+                    }}
+                  >
+                    <EyeOff size={11} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
