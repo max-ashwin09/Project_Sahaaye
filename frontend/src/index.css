@@ -643,6 +643,215 @@ body {
   font-weight: 500;
 }
 
+/* ─── Hero Banner Day/Night Themes & Transitions ─── */
+.hero-banner {
+  transition: background 0.7s ease, border-color 0.7s ease, box-shadow 0.7s ease;
+}
+
+.hero-banner.night-mode {
+  background: linear-gradient(135deg, #090d16 0%, #111827 45%, #1e1b4b 100%) !important;
+  border-color: #312e81 !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.4) !important;
+}
+
+.hero-banner.night-mode::before {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, transparent 70%) !important;
+}
+
+.hero-banner.night-mode .hero-text h1 {
+  color: #f8fafc !important;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.hero-banner.night-mode .hero-text p {
+  color: #94a3b8 !important;
+}
+
+.hero-banner.night-mode .hero-quote {
+  background: rgba(15, 23, 42, 0.75) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+
+.hero-banner.night-mode .hero-quote p {
+  color: #cbd5e1 !important;
+}
+
+.hero-banner.night-mode .hero-quote::before {
+  color: #818cf8 !important;
+}
+
+/* Day/Night Interactive Switch Pill */
+.day-night-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all 0.2s ease;
+  user-select: none;
+  backdrop-filter: blur(4px);
+}
+
+.day-night-pill-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.hero-banner.night-mode .day-night-pill-btn {
+  background: rgba(30, 27, 75, 0.85);
+  border-color: #4f46e5;
+  color: #c7d2fe;
+}
+
+.day-night-pill-btn .pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.day-night-pill-btn.day .pill-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+}
+
+.day-night-pill-btn.night .pill-dot {
+  background: #a5b4fc;
+  box-shadow: 0 0 6px #a5b4fc;
+}
+
+/* ─── Hero SVG Animations (Day & Night) ─── */
+.anim-sun-corona {
+  transform-origin: 340px 32px;
+  animation: sun-corona-pulse 3s ease-in-out infinite;
+}
+
+@keyframes sun-corona-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.35; }
+  50% { transform: scale(1.22); opacity: 0.65; }
+}
+
+.anim-sun-rays {
+  transform-origin: 340px 32px;
+  animation: sun-spin 22s linear infinite;
+}
+
+@keyframes sun-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.anim-cloud-1 {
+  animation: cloud-float-1 8s ease-in-out infinite alternate;
+}
+
+@keyframes cloud-float-1 {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(14px); }
+}
+
+.anim-cloud-2 {
+  animation: cloud-float-2 10s ease-in-out infinite alternate;
+}
+
+@keyframes cloud-float-2 {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-16px); }
+}
+
+.anim-birds {
+  animation: birds-glide 12s linear infinite;
+}
+
+@keyframes birds-glide {
+  0% { transform: translate(-30px, 8px); opacity: 0; }
+  15% { opacity: 0.8; }
+  85% { opacity: 0.8; }
+  100% { transform: translate(150px, -18px); opacity: 0; }
+}
+
+.anim-tree-sway {
+  transform-origin: bottom center;
+  animation: tree-gentle-sway 4s ease-in-out infinite alternate;
+}
+
+@keyframes tree-gentle-sway {
+  0% { transform: rotate(-1.5deg); }
+  100% { transform: rotate(1.5deg); }
+}
+
+.anim-moon-halo {
+  transform-origin: 340px 32px;
+  animation: moon-halo-glow 3.5s ease-in-out infinite alternate;
+}
+
+@keyframes moon-halo-glow {
+  0% { transform: scale(0.95); opacity: 0.25; }
+  100% { transform: scale(1.25); opacity: 0.55; }
+}
+
+.anim-moon-body {
+  animation: moon-bob 4s ease-in-out infinite alternate;
+}
+
+@keyframes moon-bob {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-3px); }
+}
+
+.anim-star-1 { animation: star-blink 2.2s ease-in-out infinite; }
+.anim-star-2 { animation: star-blink 3.1s ease-in-out infinite 0.6s; }
+.anim-star-3 { animation: star-blink 2.6s ease-in-out infinite 1.2s; }
+.anim-star-4 { animation: star-blink 3.8s ease-in-out infinite 0.3s; }
+.anim-star-5 { animation: star-blink 2.9s ease-in-out infinite 1.8s; }
+.anim-star-6 { animation: star-blink 3.4s ease-in-out infinite 0.9s; }
+.anim-star-7 { animation: star-blink 2.4s ease-in-out infinite 1.5s; }
+
+@keyframes star-blink {
+  0%, 100% { opacity: 0.25; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.35); }
+}
+
+.anim-meteor {
+  animation: meteor-pass 8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+@keyframes meteor-pass {
+  0%, 75% { transform: translate(-30px, -20px); opacity: 0; }
+  78% { opacity: 0.95; }
+  85% { transform: translate(140px, 70px); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+.anim-night-window {
+  animation: window-warm-flicker 3s ease-in-out infinite alternate;
+}
+
+@keyframes window-warm-flicker {
+  0% { opacity: 0.85; filter: drop-shadow(0 0 3px #fde047); }
+  100% { opacity: 1; filter: drop-shadow(0 0 7px #f59e0b); }
+}
+
+.anim-smoke-puff-1 {
+  animation: smoke-drift 3.2s ease-out infinite;
+}
+
+.anim-smoke-puff-2 {
+  animation: smoke-drift 3.2s ease-out infinite 1.6s;
+}
+
+@keyframes smoke-drift {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0.7; }
+  100% { transform: translate(12px, -22px) scale(1.4); opacity: 0; }
+}
+
 /* ============================================================
    STAT CARDS ROW
    ============================================================ */
