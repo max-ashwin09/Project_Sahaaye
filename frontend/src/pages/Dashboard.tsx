@@ -1098,6 +1098,41 @@ const Dashboard: React.FC = () => {
           </div>
           </>
         )}
+
+        {/* ═══ MAP LEGAL ATTRIBUTION FOOTER ══════════════════════════════════ */}
+        <footer
+          className="dashboard-map-attribution-footer"
+          style={{
+            marginTop: '28px',
+            padding: '16px 8px 24px',
+            textAlign: 'center',
+            fontSize: '12px',
+            color: '#94a3b8',
+            borderTop: '1px solid #e2e8f0',
+          }}
+        >
+          <span>
+            Map data &copy;{' '}
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: '#0d9488', textDecoration: 'none', fontWeight: 500 }}
+            >
+              OpenStreetMap
+            </a>{' '}
+            contributors. Built with{' '}
+            <a
+              href="https://leafletjs.com"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: '#0d9488', textDecoration: 'none', fontWeight: 500 }}
+            >
+              Leaflet
+            </a>
+            .
+          </span>
+        </footer>
         </main>
 
       </div>

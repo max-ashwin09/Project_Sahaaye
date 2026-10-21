@@ -274,6 +274,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportWrapperRef = useRef<HTMLDivElement>(null);
   const categoryMenuRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const streetLayerRef = useRef<L.TileLayer | null>(null);
@@ -283,6 +284,41 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   const circleRef = useRef<L.Circle | null>(null);
   const centerMarkerRef = useRef<L.Marker | null>(null);
   const needMarkersLayerRef = useRef<L.LayerGroup | null>(null);
+
+  // Floating controls auto-hide popup state & timer refs
+  const [controlsVisible, setControlsVisible] = useState<boolean>(false);
+  const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHoveringControlsRef = useRef<boolean>(false);
+
+  // Show floating controls and auto-hide after 3 seconds of inactivity
+  const showControlsTemporarily = useCallback((durationMs = 3000) => {
+    setControlsVisible(true);
+    if (hideControlsTimerRef.current) {
+      clearTimeout(hideControlsTimerRef.current);
+      hideControlsTimerRef.current = null;
+    }
+    if (!isHoveringControlsRef.current) {
+      hideControlsTimerRef.current = setTimeout(() => {
+        if (!isHoveringControlsRef.current) {
+          setControlsVisible(false);
+        }
+      }, durationMs);
+    }
+  }, []);
+
+  const handleControlsMouseEnter = useCallback(() => {
+    isHoveringControlsRef.current = true;
+    if (hideControlsTimerRef.current) {
+      clearTimeout(hideControlsTimerRef.current);
+      hideControlsTimerRef.current = null;
+    }
+    setControlsVisible(true);
+  }, []);
+
+  const handleControlsMouseLeave = useCallback(() => {
+    isHoveringControlsRef.current = false;
+    showControlsTemporarily(3000);
+  }, [showControlsTemporarily]);
 
   // Setup global volunteer bridge for Leaflet popup buttons
   useEffect(() => {
@@ -372,13 +408,19 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       minZoom: 5,
       maxZoom: 19,
       zoomControl: false, // Google Maps style zoom buttons
-      attributionControl: true,
+      attributionControl: false,
       touchZoom: true,
       dragging: true,
       tapTolerance: 15,
     });
 
     mapRef.current = map;
+
+    // Map movement / zoom / drag triggers floating controls auto-hide popup
+    const handleMapInteraction = () => {
+      showControlsTemporarily(3000);
+    };
+    map.on('movestart move moveend zoomstart zoom zoomend dragstart drag dragend', handleMapInteraction);
 
     // 1. OpenStreetMap Standard Streets Layer (100% Free, Zero Watermark, Crisp Highways & Buildings)
     const streetLayer = L.tileLayer(
@@ -469,6 +511,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
     // Click/tap on map: show sleek micro-pill popup (< 1 sec) and smoothly move map
     map.on('click', (e) => {
+      showControlsTemporarily(3000);
       const origEvent = e.originalEvent as any;
       if (origEvent?.target?.closest?.('.leaflet-marker-icon, .leaflet-popup, .livemap-maptype-switcher')) return;
 
@@ -520,7 +563,36 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       map.remove();
       mapRef.current = null;
     };
-  }, []); // Run once on mount
+  }, [showControlsTemporarily]); // Run once on mount
+
+  // Viewport DOM events (mousemove, touchstart, pointerdown, wheel) to smoothly reveal controls
+  useEffect(() => {
+    const wrapper = viewportWrapperRef.current;
+    if (!wrapper) return;
+
+    const handleWrapperPointer = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.('.livemap-map-floating-layers, .livemap-floating-overlay')) {
+        return;
+      }
+      showControlsTemporarily(3000);
+    };
+
+    wrapper.addEventListener('mousemove', handleWrapperPointer, { passive: true });
+    wrapper.addEventListener('touchstart', handleWrapperPointer, { passive: true });
+    wrapper.addEventListener('pointerdown', handleWrapperPointer, { passive: true });
+    wrapper.addEventListener('wheel', handleWrapperPointer, { passive: true });
+
+    return () => {
+      if (hideControlsTimerRef.current) {
+        clearTimeout(hideControlsTimerRef.current);
+      }
+      wrapper.removeEventListener('mousemove', handleWrapperPointer);
+      wrapper.removeEventListener('touchstart', handleWrapperPointer);
+      wrapper.removeEventListener('pointerdown', handleWrapperPointer);
+      wrapper.removeEventListener('wheel', handleWrapperPointer);
+    };
+  }, [showControlsTemporarily]);
 
   // ─── Switch Map Tiles (Streets vs Satellite Hybrid vs Terrain) ────────────────
   useEffect(() => {
@@ -660,6 +732,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   };
 
   const handleLocateMe = () => {
+    showControlsTemporarily(3000);
     if (!navigator.geolocation) {
       if (onToast) onToast('Geolocation is not supported by your browser');
       return;
@@ -686,6 +759,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
   };
 
   const handleResetToIndore = () => {
+    showControlsTemporarily(3000);
     setCenterCoords([22.7533, 75.8937]);
     setCenterName('Vijay Nagar, Indore');
     setRadiusKm(3);
@@ -708,10 +782,12 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
 
   const zoomIn = () => {
     if (mapRef.current) mapRef.current.zoomIn();
+    showControlsTemporarily(3000);
   };
 
   const zoomOut = () => {
     if (mapRef.current) mapRef.current.zoomOut();
+    showControlsTemporarily(3000);
   };
 
   return (
@@ -909,15 +985,28 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
       </div>
 
       {/* ─── Leaflet Map Canvas ───────────────────────────────────────────────── */}
-      <div className="livemap-viewport-wrapper">
+      <div ref={viewportWrapperRef} className="livemap-viewport-wrapper">
         <div ref={containerRef} className="livemap-canvas-element" />
 
         {/* Floating Highlighted Layer Switcher (Streets / Satellite / Standard) */}
-        <div className="livemap-map-floating-layers" role="group" aria-label="Map Tile Layers">
+        <div
+          className={`livemap-map-floating-layers ${controlsVisible ? 'controls-popup-visible' : 'controls-popup-hidden'}`}
+          role="group"
+          aria-label="Map Tile Layers"
+          onMouseEnter={handleControlsMouseEnter}
+          onMouseLeave={handleControlsMouseLeave}
+          onTouchStart={handleControlsMouseEnter}
+          onTouchEnd={handleControlsMouseLeave}
+          onPointerDown={handleControlsMouseEnter}
+          onPointerUp={handleControlsMouseLeave}
+        >
           <button
             type="button"
             className={`floating-layer-btn ${mapType === 'streets' ? 'active' : ''}`}
-            onClick={() => setMapType('streets')}
+            onClick={() => {
+              setMapType('streets');
+              showControlsTemporarily(3000);
+            }}
             title="Streets & highways view"
           >
             <span className="layer-icon">
@@ -928,7 +1017,10 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
           <button
             type="button"
             className={`floating-layer-btn ${mapType === 'satellite' ? 'active' : ''}`}
-            onClick={() => setMapType('satellite')}
+            onClick={() => {
+              setMapType('satellite');
+              showControlsTemporarily(3000);
+            }}
             title="Satellite view with actual houses & road names"
           >
             <span className="layer-icon">
@@ -939,7 +1031,10 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
           <button
             type="button"
             className={`floating-layer-btn ${mapType === 'terrain' ? 'active' : ''}`}
-            onClick={() => setMapType('terrain')}
+            onClick={() => {
+              setMapType('terrain');
+              showControlsTemporarily(3000);
+            }}
             title="Standard topographic view"
           >
             <span className="layer-icon">
@@ -950,7 +1045,15 @@ export const LiveMap: React.FC<LiveMapProps> = ({ onVolunteer, onToast }) => {
         </div>
 
         {/* Floating Google-style Map Controls Overlay */}
-        <div className="livemap-floating-overlay">
+        <div
+          className={`livemap-floating-overlay ${controlsVisible ? 'controls-popup-visible' : 'controls-popup-hidden'}`}
+          onMouseEnter={handleControlsMouseEnter}
+          onMouseLeave={handleControlsMouseLeave}
+          onTouchStart={handleControlsMouseEnter}
+          onTouchEnd={handleControlsMouseLeave}
+          onPointerDown={handleControlsMouseEnter}
+          onPointerUp={handleControlsMouseLeave}
+        >
           {/* Zoom Controls */}
           <div className="floating-ctrl-group">
             <button

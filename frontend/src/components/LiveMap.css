@@ -442,6 +442,17 @@
   height: 100%;
 }
 
+/* Leaflet attribution removal: 100% hidden with zero residual padding/strip */
+.leaflet-control-attribution {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
 /* ─── Floating Right-Side Touchable Highlighted Layer Switcher ─── */
 .livemap-map-floating-layers {
   position: absolute;
@@ -457,6 +468,32 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
   border: 1.5px solid rgba(226, 232, 240, 0.9);
   gap: 3px;
+  /* Auto-hide popup animation (Hidden by default) */
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(-5px) scale(0.96);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.22s;
+  will-change: opacity, transform;
+}
+
+.livemap-map-floating-layers.controls-popup-visible {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.livemap-map-floating-layers.controls-popup-hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(-5px) scale(0.96);
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 1, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 1, 1),
+              visibility 0.25s;
 }
 
 .floating-layer-btn {
@@ -520,6 +557,32 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Auto-hide popup animation (Hidden by default) */
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(6px) scale(0.96);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.22s;
+  will-change: opacity, transform;
+}
+
+.livemap-floating-overlay.controls-popup-visible {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.livemap-floating-overlay.controls-popup-hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(6px) scale(0.96);
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 1, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 1, 1),
+              visibility 0.25s;
 }
 
 .floating-ctrl-group {
