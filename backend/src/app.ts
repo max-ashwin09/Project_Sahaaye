@@ -10,6 +10,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { moderationRouter } from './modules/moderation/router';
 import { needsRouter } from './modules/needs';
 import { appDownloadRouter } from './modules/app/router';
+import { locationRouter } from './modules/location';
 
 export const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/v1/needs', needsRouter);
 // Android App Distribution & APK Download Router
 app.use('/api/v1/app', appDownloadRouter);
 
+// Location & City Service Router
+app.use('/api/v1/location', locationRouter);
+
 app.use(errorHandler);
-
-

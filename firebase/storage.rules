@@ -1,0 +1,32 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Community need proof images
+    match /needs/{imageId} {
+      // Need photos are publicly readable for volunteers & community map
+      allow read: if true;
+      
+      // Upload constraints:
+      // 1. Must be authenticated
+      // 2. Max size 10MB
+      // 3. Must be JPG, PNG, or WebP
+      allow write: if isAuthenticated()
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
+    }
+    
+    // User profile images
+    match /users/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() 
+        && request.auth.uid == userId
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
+    }
+  }
+}

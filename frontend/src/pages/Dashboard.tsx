@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReportNeed from './ReportNeed';
+import LiveMap from '../components/LiveMap';
+import { LocationSelector } from '../components/LocationSelector';
+import { LocationPromptBanner } from '../components/LocationPromptBanner';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
+import { useNearbyNeeds } from '../hooks/useNearbyNeeds';
+import { useLanguageStore } from '../stores/useLanguageStore';
 import {
   LayoutDashboard,
   MapPin,
@@ -14,6 +20,23 @@ import {
   LogIn,
   Smartphone,
   ArrowDownToLine,
+  Users,
+  Clock,
+  CheckCircle2,
+  Star,
+  Compass,
+  Heart,
+  HandHeart,
+  HeartHandshake,
+  Building2,
+  Utensils,
+  HeartPulse,
+  BookOpen,
+  Shirt,
+  Droplets,
+  Home,
+  HelpCircle,
+  Languages,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -28,7 +51,7 @@ interface StatCard {
   id: string;
   value: string | number;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   iconBg: string;
   color: string;
   trend: string;
@@ -53,7 +76,7 @@ interface QuickAction {
   id: string;
   label: string;
   sub: string;
-  icon: string;
+  icon: React.ReactNode;
   bg: string;
   iconBg: string;
 }
@@ -72,6 +95,33 @@ interface DonutSegment {
   color: string;
 }
 
+// Category monochrome icon helper
+export function getCategoryIcon(cat: string, size = 18, color = 'currentColor') {
+  const c = cat.toLowerCase();
+  if (c.includes('food') || c.includes('ration') || c.includes('meal')) {
+    return <Utensils size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('med') || c.includes('health') || c.includes('insulin')) {
+    return <HeartPulse size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('edu') || c.includes('school') || c.includes('book')) {
+    return <BookOpen size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('elder') || c.includes('care') || c.includes('senior')) {
+    return <HeartHandshake size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('shelt') || c.includes('rain') || c.includes('house') || c.includes('tarpaulin')) {
+    return <Home size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('water') || c.includes('drink')) {
+    return <Droplets size={size} strokeWidth={1.8} color={color} />;
+  }
+  if (c.includes('cloth') || c.includes('blanket') || c.includes('winter')) {
+    return <Shirt size={size} strokeWidth={1.8} color={color} />;
+  }
+  return <HelpCircle size={size} strokeWidth={1.8} color={color} />;
+}
+
 // ─── Data ────────────────────────────────────────────────────────────────────
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={2} /> },
@@ -88,23 +138,27 @@ const NAV_ITEMS: NavItem[] = [
 
 const STATS: StatCard[] = [
   {
-    id: 'nearby', value: 28, label: 'Nearby Needs', icon: '👥',
-    iconBg: '#f0fdfa', color: '#0d9488', trend: '+12%', trendDir: 'up',
+    id: 'nearby', value: 28, label: 'Nearby Needs',
+    icon: <Users size={21} strokeWidth={1.8} color="#0d9488" />,
+    iconBg: 'rgba(13, 148, 136, 0.11)', color: '#0d9488', trend: '+12%', trendDir: 'up',
     chartData: [4, 7, 5, 9, 6, 8, 10], chartColor: '#0d9488',
   },
   {
-    id: 'progress', value: 9, label: 'In Progress', icon: '🔄',
-    iconBg: '#fff7ed', color: '#f59e0b', trend: '+5%', trendDir: 'up',
+    id: 'progress', value: 9, label: 'In Progress',
+    icon: <Clock size={21} strokeWidth={1.8} color="#f59e0b" />,
+    iconBg: 'rgba(245, 158, 11, 0.11)', color: '#f59e0b', trend: '+5%', trendDir: 'up',
     chartData: [3, 5, 4, 6, 5, 7, 9], chartColor: '#f59e0b',
   },
   {
-    id: 'completed', value: 16, label: 'Completed', icon: '✅',
-    iconBg: '#f0fdf4', color: '#10b981', trend: '+26%', trendDir: 'up',
+    id: 'completed', value: 16, label: 'Completed',
+    icon: <CheckCircle2 size={21} strokeWidth={1.8} color="#10b981" />,
+    iconBg: 'rgba(16, 185, 129, 0.11)', color: '#10b981', trend: '+26%', trendDir: 'up',
     chartData: [5, 8, 7, 10, 9, 13, 16], chartColor: '#10b981',
   },
   {
-    id: 'rating', value: '4.8', label: 'Community Rating', icon: '⭐',
-    iconBg: '#fdf4ff', color: '#a855f7', trend: '+0.2', trendDir: 'up',
+    id: 'rating', value: '4.8', label: 'Community Rating',
+    icon: <Star size={21} strokeWidth={1.8} color="#a855f7" />,
+    iconBg: 'rgba(168, 85, 247, 0.11)', color: '#a855f7', trend: '+0.2', trendDir: 'up',
     chartData: [4.2, 4.3, 4.5, 4.4, 4.6, 4.7, 4.8], chartColor: '#a855f7',
   },
 ];
@@ -112,37 +166,37 @@ const STATS: StatCard[] = [
 const NEEDS: Need[] = [
   {
     id: 'n1', title: 'Food Support for Family', location: 'Vijay Nagar, Indore',
-    timeAgo: '10 mins ago', emoji: '🍚',
+    timeAgo: '10 mins ago', emoji: 'Food',
     tagLabel: 'Food', tagColor: '#2563eb', tagBorder: '#bfdbfe', tagBg: '#eff6ff',
   },
   {
     id: 'n2', title: 'Medical Help Required', location: 'Palasia, Indore',
-    timeAgo: '25 mins ago', emoji: '💊',
+    timeAgo: '25 mins ago', emoji: 'Medical',
     tagLabel: 'Medical', tagColor: '#e11d48', tagBorder: '#fecdd3', tagBg: '#fff1f2',
   },
   {
     id: 'n3', title: 'School Supplies Needed', location: 'Scheme 54, Indore',
-    timeAgo: '1 hour ago', emoji: '📚',
+    timeAgo: '1 hour ago', emoji: 'Education',
     tagLabel: 'Education', tagColor: '#0d9488', tagBorder: '#99f6e4', tagBg: '#f0fdfa',
   },
   {
     id: 'n4', title: 'Elderly Care Support', location: 'Annapurna Road, Indore',
-    timeAgo: '2 hours ago', emoji: '👴',
+    timeAgo: '2 hours ago', emoji: 'Elderly',
     tagLabel: 'Elderly', tagColor: '#7c3aed', tagBorder: '#ddd6fe', tagBg: '#f5f3ff',
   },
 ];
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { id: 'report', label: 'Report a Need', sub: 'Let the community know', icon: '➕', bg: '#eff6ff', iconBg: '#dbeafe' },
-  { id: 'find', label: 'Find Nearby Needs', sub: 'Explore around you', icon: '🗺️', bg: '#f0fdf4', iconBg: '#d1fae5' },
-  { id: 'myreports', label: 'My Reports', sub: 'Track your submissions', icon: '📋', bg: '#f5f3ff', iconBg: '#ede9fe' },
-  { id: 'helping', label: 'My Helping Activities', sub: 'See your impact', icon: '❤️', bg: '#fff1f2', iconBg: '#fce7f3' },
+  { id: 'report', label: 'Report a Need', sub: 'Let the community know', icon: <PlusCircle size={20} strokeWidth={1.8} color="#2563eb" />, bg: '#eff6ff', iconBg: '#dbeafe' },
+  { id: 'find', label: 'Find Nearby Needs', sub: 'Explore around you', icon: <Compass size={20} strokeWidth={1.8} color="#0d9488" />, bg: '#f0fdf4', iconBg: '#d1fae5' },
+  { id: 'myreports', label: 'My Reports', sub: 'Track your submissions', icon: <ClipboardList size={20} strokeWidth={1.8} color="#7c3aed" />, bg: '#f5f3ff', iconBg: '#ede9fe' },
+  { id: 'helping', label: 'My Helping Activities', sub: 'See your impact', icon: <Heart size={20} strokeWidth={1.8} color="#e11d48" />, bg: '#fff1f2', iconBg: '#fce7f3' },
 ];
 
 const ACTIVITIES: Activity[] = [
-  { id: 'a1', title: 'Helped with Food Supplies', location: 'Vijay Nagar, Indore • 2 days ago', emoji: '🍚', status: 'completed' },
-  { id: 'a2', title: 'Clothes Donation', location: 'Rajwada, Indore • 4 days ago', emoji: '👕', status: 'completed' },
-  { id: 'a3', title: 'Medical Support', location: 'MY Hospital, Indore • 1 week ago', emoji: '💊', status: 'completed' },
+  { id: 'a1', title: 'Helped with Food Supplies', location: 'Vijay Nagar, Indore • 2 days ago', emoji: 'Food', status: 'completed' },
+  { id: 'a2', title: 'Clothes Donation', location: 'Rajwada, Indore • 4 days ago', emoji: 'Clothes', status: 'completed' },
+  { id: 'a3', title: 'Medical Support', location: 'MY Hospital, Indore • 1 week ago', emoji: 'Medical', status: 'completed' },
 ];
 
 const DONUT_SEGMENTS: DonutSegment[] = [
@@ -326,8 +380,20 @@ const StatCardItem: React.FC<{ stat: StatCard; onClick: () => void }> = ({ stat,
       role="button"
       tabIndex={0}
     >
-      <div className="stat-icon-wrap" style={{ background: stat.iconBg }}>
-        <span style={{ fontSize: '22px' }}>{stat.icon}</span>
+      <div
+        className="stat-icon-wrap"
+        style={{
+          width: 46,
+          height: 46,
+          borderRadius: 12,
+          background: stat.iconBg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {stat.icon}
       </div>
       <div className="stat-body">
         <div className="stat-value" style={{ color: stat.color }}>{displayVal}</div>
@@ -347,6 +413,16 @@ const Dashboard: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [needsList, setNeedsList] = useState<Need[]>(NEEDS);
+  const { location: selectedLocation, filterToast, clearFilterToast } = useSelectedLocation();
+  const { needs: nearbyNeedsList, isLoading: isNeedsLoading } = useNearbyNeeds();
+  const { lang, setLang, toggleLang } = useLanguageStore();
+
+  useEffect(() => {
+    if (filterToast) {
+      showToast(`📍 ${filterToast}`);
+      clearFilterToast();
+    }
+  }, [filterToast, clearFilterToast]);
   const [currentUser, setCurrentUser] = useState<{ name: string; role: string; avatar: string } | null>(() => {
     try {
       const stored = localStorage.getItem('sahaaye_user');
@@ -436,7 +512,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchLiveNeeds();
-    const interval = setInterval(fetchLiveNeeds, 5000);
+    const interval = setInterval(fetchLiveNeeds, 30000);
     return () => clearInterval(interval);
   }, [fetchLiveNeeds]);
 
@@ -566,18 +642,36 @@ const Dashboard: React.FC = () => {
               <span className="download-topbar-badge">{apkInfo?.fileSizeMb || '25 MB'}</span>
             </a>
 
+            <LocationSelector onToast={showToast} />
+
+            {/* Language Toggle Button (Instant Switch & Persisted) */}
             <button
-              className="location-btn ripple-container"
-              onClick={(e) => { addRipple(e); showToast('📍 Location: Indore, MP'); }}
+              type="button"
+              className="lang-toggle-topbar-btn ripple-container"
+              onClick={(e) => {
+                addRipple(e);
+                toggleLang();
+                showToast(lang === 'en' ? '🇮🇳 भाषा हिंदी में सेट हो गई' : 'Language set to English');
+              }}
+              title={lang === 'en' ? 'Switch to हिंदी' : 'Switch to English'}
+              aria-label="Toggle language"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                color: '#0f766e',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
             >
-              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
-              <span>Indore, MP</span>
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="m6 9 6 6 6-6" />
-              </svg>
+              <Languages size={15} />
+              <span>{lang === 'en' ? 'हिंदी' : 'English'}</span>
             </button>
 
             <div className="icon-btn ripple-container" onClick={(e) => { addRipple(e); showToast(currentUser ? '🔔 12 new notifications' : '🔔 Please login to view notifications'); }}>
@@ -616,6 +710,18 @@ const Dashboard: React.FC = () => {
           </div>
         </header>
 
+        {/* ── LOCATION & STATE LANGUAGE NOTIFICATION PROMPTS ─────────────── */}
+        <LocationPromptBanner
+          onOpenSelector={() => {
+            const locBtn = document.querySelector('.location-btn') as HTMLButtonElement;
+            locBtn?.click();
+          }}
+          onLanguageSwitch={(newLang) => {
+            setLang(newLang);
+            showToast(newLang === 'hi' ? '🇮🇳 भाषा हिंदी में सेट हो गई' : 'Language set to English');
+          }}
+        />
+
         {/* ── PAGE CONTENT ───────────────────────────────────────────────── */}
         <main className="page-content">
           {activeNav === 'report' ? (
@@ -623,119 +729,167 @@ const Dashboard: React.FC = () => {
               onCancel={() => handleNav('dashboard')}
               onSuccess={() => {
                 showToast('🎉 Need reported and published to community!');
+              }}
+              onViewOnMap={(lat, lng) => {
                 handleNav('dashboard');
+                showToast(`📍 Switched to Live Map at ${lat.toFixed(3)}°, ${lng.toFixed(3)}°`);
               }}
             />
           ) : (
             <>
               {/* ── HERO BANNER ─────────────────────────────────────────────── */}
               <div className="hero-banner">
-
-            <div className="hero-text">
-              <h1>{currentUser ? `Welcome Back, ${currentUser.name}! 👋` : 'Welcome to SAHAAYE! 🤝'}</h1>
-              <p>
-                {currentUser
-                  ? "Small actions create big changes. Let's keep making the difference."
-                  : "Discover local needs, connect with communities, and lend a helping hand across India."}
-              </p>
-            </div>
-            <div className="hero-illustration">
-              <svg width="220" height="90" viewBox="0 0 220 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Sky */}
-                <rect width="220" height="90" rx="8" fill="url(#skyGrad)" />
-                {/* Mountains */}
-                <polygon points="0,90 40,30 80,90" fill="#a5d6a7" opacity="0.6" />
-                <polygon points="30,90 70,25 110,90" fill="#81c784" opacity="0.5" />
-                {/* Temple */}
-                <rect x="85" y="45" width="50" height="45" fill="#ffcc80" />
-                <polygon points="85,45 110,15 135,45" fill="#ff8a65" />
-                <rect x="95" y="60" width="12" height="30" fill="#e65100" />
-                <rect x="113" y="60" width="12" height="30" fill="#e65100" />
-                <rect x="85" y="35" width="50" height="12" fill="#ff8a65" />
-                {/* Flag */}
-                <line x1="110" y1="15" x2="110" y2="5" stroke="#795548" strokeWidth="1.5" />
-                <polygon points="110,5 120,8 110,11" fill="#f44336" />
-                {/* Trees */}
-                <circle cx="75" cy="60" r="14" fill="#66bb6a" />
-                <rect x="73" y="70" width="4" height="20" fill="#795548" />
-                <circle cx="155" cy="55" r="12" fill="#4caf50" />
-                <rect x="153" y="63" width="4" height="27" fill="#795548" />
-                <circle cx="170" cy="65" r="8" fill="#81c784" />
-                <rect x="168" y="71" width="3" height="19" fill="#795548" />
-                {/* Ground */}
-                <rect x="0" y="83" width="220" height="7" rx="0" fill="#a5d6a7" />
-                {/* Sun */}
-                <circle cx="185" cy="20" r="10" fill="#ffd54f" opacity="0.9" />
-                <circle cx="185" cy="20" r="14" fill="#ffd54f" opacity="0.2" />
-                {/* Clouds */}
-                <ellipse cx="40" cy="15" rx="18" ry="8" fill="white" opacity="0.7" />
-                <ellipse cx="55" cy="12" rx="12" ry="7" fill="white" opacity="0.7" />
-                <ellipse cx="30" cy="13" rx="10" ry="6" fill="white" opacity="0.6" />
-                <defs>
-                  <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#bbdefb" />
-                    <stop offset="100%" stopColor="#e8f5e9" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
-            <div className="hero-quote">
-              <p>Helping people builds stronger communities.</p>
-            </div>
-          </div>
-
-          {/* ── ANDROID APP DOWNLOAD CARD ─────────────────────────────────── */}
-          <div className="app-download-card">
-            <div className="app-card-left">
-              <div className="app-avatar-badge">
-                <Smartphone size={28} className="app-phone-icon" />
-                <span className="app-pulse-dot" />
-              </div>
-              <div className="app-card-details">
-                <div className="app-card-title-row">
-                  <h3 className="app-card-title">SAHAAYE for Android</h3>
-                  <span className="app-version-chip">v{apkInfo?.version || '1.0'} Official</span>
-                  <span className="app-sync-chip">🟢 Auto-Synced APK</span>
+                {/* Hero Text with Original Colors */}
+                <div className="hero-text">
+                  <h1>{currentUser ? `Welcome Back, ${currentUser.name}! 👋` : 'Welcome to SAHAAYE! 🤝'}</h1>
+                  <p>
+                    {currentUser
+                      ? "Small actions create big changes. Let's keep making the difference."
+                      : "Discover local needs, connect with communities, and lend a helping hand across India."}
+                  </p>
                 </div>
-                <p className="app-card-desc">
-                  Capture geo-verified photo & video proofs with automatic coordinate watermark, report local needs directly from the ground, and stay connected with real-time aid alerts.
-                </p>
-                <div className="app-highlights">
-                  <span className="highlight-pill">📸 Geo-Camera & Flash</span>
-                  <span className="highlight-pill">🎥 HD Video Proofs</span>
-                  <span className="highlight-pill">📍 Real-Time GPS Watermark</span>
-                  <span className="highlight-pill">⚡ Always Latest Build</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="app-card-right">
-              <a
-                href={apkInfo?.downloadUrl || '/downloads/sahaaye-latest.apk'}
-                download="Sahaaye-Latest.apk"
-                className="app-download-action-btn ripple-container"
-                onClick={(e) => {
-                  addRipple(e);
-                  showToast('📥 Downloading SAHAAYE Android APK (Direct Install)…');
-                }}
-              >
-                <ArrowDownToLine size={20} />
-                <div className="btn-label-group">
-                  <span className="btn-title">Download APK</span>
-                  <span className="btn-meta">{apkInfo?.fileSizeMb || '25 MB'} • Direct Install</span>
+                {/* Hero Illustration: Only the Grass, Cottages & Nature Landscape Effect */}
+                <div className="hero-illustration">
+                  <svg className="hero-landscape-svg" viewBox="0 0 460 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <linearGradient id="mntGrad1" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#a7f3d0" stopOpacity="0.75" />
+                        <stop offset="100%" stopColor="#d1fae5" stopOpacity="0.1" />
+                      </linearGradient>
+                      <linearGradient id="mntGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.65" />
+                        <stop offset="100%" stopColor="#a7f3d0" stopOpacity="0.1" />
+                      </linearGradient>
+                      <linearGradient id="grassHillBack" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#86efac" />
+                        <stop offset="100%" stopColor="#4ade80" />
+                      </linearGradient>
+                      <linearGradient id="grassHillMid" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6ee7b7" />
+                        <stop offset="100%" stopColor="#10b981" />
+                      </linearGradient>
+                      <linearGradient id="grassHillFore" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#34d399" />
+                        <stop offset="100%" stopColor="#059669" />
+                      </linearGradient>
+                      <linearGradient id="roofGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#fb923c" />
+                        <stop offset="100%" stopColor="#ea580c" />
+                      </linearGradient>
+                      <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fffbeb" />
+                        <stop offset="100%" stopColor="#fef3c7" />
+                      </linearGradient>
+                      <linearGradient id="treeGrad1" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#34d399" />
+                        <stop offset="100%" stopColor="#059669" />
+                      </linearGradient>
+                      <linearGradient id="treeGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" />
+                        <stop offset="100%" stopColor="#047857" />
+                      </linearGradient>
+                      <linearGradient id="sunGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#fde047" />
+                        <stop offset="100%" stopColor="#f59e0b" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Distant Soft Mountains */}
+                    <polygon points="10,140 75,35 155,140" fill="url(#mntGrad1)" />
+                    <polygon points="110,140 185,25 270,140" fill="url(#mntGrad2)" />
+                    <polygon points="230,140 305,45 385,140" fill="url(#mntGrad1)" />
+
+                    {/* Sun & Cloud */}
+                    <circle cx="340" cy="32" r="14" fill="url(#sunGrad)" />
+                    <circle cx="340" cy="32" r="22" fill="#fef08a" opacity="0.35" />
+                    <ellipse cx="260" cy="30" rx="14" ry="6" fill="#ffffff" opacity="0.75" />
+                    <ellipse cx="270" cy="27" rx="10" ry="5" fill="#ffffff" opacity="0.85" />
+
+                    {/* Back Rolling Grass Knolls */}
+                    <path d="M0,140 Q80,95 180,105 Q300,118 410,95 Q440,88 460,92 L460,140 Z" fill="url(#grassHillBack)" opacity="0.65" />
+
+                    {/* Mid Rolling Hills */}
+                    <path d="M-10,140 Q90,110 190,115 Q310,120 370,90 Q420,70 470,85 L470,140 Z" fill="url(#grassHillMid)" opacity="0.85" />
+
+                    {/* Trees Behind House */}
+                    <rect x="175" y="70" width="5" height="35" rx="2" fill="#78350f" />
+                    <ellipse cx="177" cy="65" rx="16" ry="18" fill="url(#treeGrad1)" />
+                    <ellipse cx="173" cy="60" rx="12" ry="14" fill="#6ee7b7" opacity="0.4" />
+
+                    <rect x="295" y="75" width="5" height="30" rx="2" fill="#78350f" />
+                    <ellipse cx="297" cy="70" rx="14" ry="16" fill="url(#treeGrad2)" />
+                    <ellipse cx="294" cy="66" rx="10" ry="12" fill="#34d399" opacity="0.4" />
+
+                    {/* Tall Cypress Style Tree */}
+                    <rect x="365" y="60" width="4" height="45" rx="2" fill="#78350f" />
+                    <path d="M367,25 Q380,45 378,75 Q367,90 356,75 Q354,45 367,25 Z" fill="#059669" />
+                    <path d="M367,28 Q375,45 373,70 Q367,82 361,70 Q360,45 367,28 Z" fill="#10b981" opacity="0.6" />
+
+                    {/* Small Cottage */}
+                    <polygon points="175,85 200,68 225,85" fill="url(#roofGrad)" />
+                    <rect x="180" y="85" width="40" height="26" fill="url(#wallGrad)" />
+                    <rect x="195" y="93" width="10" height="18" rx="1" fill="#b45309" />
+                    <rect x="185" y="90" width="6" height="6" rx="1" fill="#38bdf8" stroke="#0284c7" strokeWidth="0.8" />
+
+                    {/* Main Community Cottage */}
+                    <rect x="240" y="44" width="10" height="15" fill="url(#wallGrad)" />
+                    <polygon points="238,44 245,34 252,44" fill="url(#roofGrad)" />
+                    <line x1="245" y1="34" x2="245" y2="28" stroke="#78350f" strokeWidth="1.5" />
+                    <line x1="242" y1="30" x2="248" y2="30" stroke="#78350f" strokeWidth="1.2" />
+
+                    {/* Main House Roof */}
+                    <polygon points="215,64 245,46 275,64" fill="url(#roofGrad)" />
+                    <polygon points="210,64 245,43 280,64" fill="none" stroke="#ea580c" strokeWidth="1" />
+
+                    {/* Main House Walls */}
+                    <rect x="219" y="64" width="52" height="42" rx="1" fill="url(#wallGrad)" stroke="#fde68a" strokeWidth="0.8" />
+
+                    {/* Door & Windows */}
+                    <rect x="240" y="78" width="11" height="28" rx="2" fill="#b45309" />
+                    <circle cx="249" cy="92" r="1" fill="#fef08a" />
+                    <rect x="224" y="74" width="10" height="10" rx="1" fill="#bae6fd" stroke="#0284c7" strokeWidth="1" />
+                    <line x1="229" y1="74" x2="229" y2="84" stroke="#0284c7" strokeWidth="0.8" />
+                    <line x1="224" y1="79" x2="234" y2="79" stroke="#0284c7" strokeWidth="0.8" />
+                    <rect x="256" y="74" width="10" height="10" rx="1" fill="#bae6fd" stroke="#0284c7" strokeWidth="1" />
+                    <line x1="261" y1="74" x2="261" y2="84" stroke="#0284c7" strokeWidth="0.8" />
+                    <line x1="256" y1="79" x2="266" y2="79" stroke="#0284c7" strokeWidth="0.8" />
+
+                    {/* Foreground Tree Left */}
+                    <rect x="150" y="85" width="6" height="26" rx="2" fill="#78350f" />
+                    <circle cx="153" cy="80" r="18" fill="url(#treeGrad1)" />
+                    <circle cx="148" cy="74" r="12" fill="#6ee7b7" opacity="0.45" />
+
+                    {/* Tree Right */}
+                    <rect x="330" y="85" width="5" height="30" rx="2" fill="#78350f" />
+                    <circle cx="332" cy="78" r="16" fill="url(#treeGrad2)" />
+                    <circle cx="328" cy="72" r="11" fill="#34d399" opacity="0.4" />
+
+                    {/* Foreground Rolling Grass Ridge */}
+                    <path d="M0,140 Q100,122 200,126 Q300,130 380,118 Q420,110 460,115 L460,140 Z" fill="url(#grassHillFore)" />
+
+                    {/* Small Grass Tufts */}
+                    <path d="M120,128 Q122,122 120,118 M122,128 Q125,123 126,119" stroke="#10b981" strokeWidth="1.2" strokeLinecap="round" />
+                    <path d="M210,130 Q212,124 210,120 M212,130 Q215,125 216,121" stroke="#10b981" strokeWidth="1.2" strokeLinecap="round" />
+                    <path d="M310,125 Q312,119 310,115 M312,125 Q315,120 316,116" stroke="#10b981" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
                 </div>
-              </a>
-              <div className="app-install-note">
-                ✓ Tap Download &gt; Open file &gt; Install on phone
+
+                {/* Hero Quote Card */}
+                <div className="hero-quote">
+                  <p>Helping people builds stronger communities.</p>
+                </div>
               </div>
-            </div>
-          </div>
 
           {/* ── STAT CARDS ──────────────────────────────────────────────── */}
           <div className="stats-row">
-            {STATS.map((stat) => (
-              <StatCardItem key={stat.id} stat={stat} onClick={() => handleStatClick(stat)} />
-            ))}
+            {STATS.map((stat) => {
+              const dynamicStat =
+                stat.id === 'nearby' ? { ...stat, value: nearbyNeedsList.length } : stat;
+              return (
+                <StatCardItem key={stat.id} stat={dynamicStat} onClick={() => handleStatClick(dynamicStat)} />
+              );
+            })}
           </div>
 
           {/* ── MAIN GRID (Needs / Map / Quick Actions) ──────────────────── */}
@@ -744,123 +898,98 @@ const Dashboard: React.FC = () => {
             {/* Needs Near You */}
             <div className="card">
               <div className="card-header">
-                <span className="card-title">Needs Near You</span>
+                <div>
+                  <span className="card-title">Needs Near You ({nearbyNeedsList.length})</span>
+                  <div style={{ fontSize: 11, color: '#0d9488', fontWeight: 600, marginTop: 2 }}>
+                    📍 {selectedLocation.area ? `${selectedLocation.area}, ` : ''}{selectedLocation.city} ·{' '}
+                    {selectedLocation.radiusKm === 0 ? 'Whole city' : `${selectedLocation.radiusKm} km radius`}
+                  </div>
+                </div>
                 <button className="view-all-btn" onClick={() => { handleNav('nearby'); }}>
                   View All →
                 </button>
               </div>
-              <div className="needs-list">
-                {needsList.map((need) => (
-                  <div
-                    key={need.id}
-                    className="need-item ripple-container"
-                    onClick={(e) => { addRipple(e); showToast(`📌 ${need.title}`); }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="need-thumb">{need.emoji}</div>
-                    <div className="need-body">
-                      <div className="need-title">{need.title}</div>
-                      <div className="need-loc">📍 {need.location}</div>
-                      <div className="need-loc">{need.timeAgo}</div>
-                    </div>
-                    <span
-                      className="need-tag"
-                      style={{
-                        color: need.tagColor,
-                        borderColor: need.tagBorder,
-                        background: need.tagBg,
-                      }}
-                    >
-                      {need.tagLabel}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Live Map */}
-            <div className="card map-section">
-              <div className="card-header">
-                <span className="card-title">Live Map</span>
-                <select className="filter-select">
-                  <option>All Categories</option>
-                  <option>Food</option>
-                  <option>Medical</option>
-                  <option>Education</option>
-                  <option>Shelter</option>
-                </select>
-              </div>
-              <div className="map-canvas">
-                {/* Map background */}
-                <div style={{
-                  width: '100%', height: '100%',
-                  background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 40%, #dcedc8 70%, #f1f8e9 100%)',
-                  position: 'relative',
-                }}>
-                  {/* Roads */}
-                  {[25, 50, 75].map(pos => (
-                    <div key={pos} className="map-road-h" style={{ top: `${pos}%` }} />
+              {isNeedsLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 8 }}>
+                  {[1, 2, 3].map((n) => (
+                    <div key={n} className="skeleton-box" style={{ height: 62, width: '100%' }} />
                   ))}
-                  {[25, 50, 75].map(pos => (
-                    <div key={pos} className="map-road-v" style={{ left: `${pos}%` }} />
-                  ))}
-
-                  {/* City label */}
-                  <div className="map-city-label">Indore</div>
-
-                  {/* Pulse at center */}
-                  <div className="map-pulse" style={{ top: '50%', left: '50%' }}>
-                    <div className="pulse-ring" />
-                  </div>
-
-                  {/* Pins */}
-                  {MAP_PINS.map((pin, i) => (
-                    <div
-                      key={i}
-                      className="map-pin"
-                      style={{ left: pin.x, top: pin.y, animationDelay: `${pin.delay}s` }}
-                      onClick={() => showToast(`📌 ${pin.emoji} Need at this location`)}
-                    >
-                      <div
-                        className="pin-icon"
-                        style={{ background: pin.color, boxShadow: `0 2px 8px ${pin.color}60` }}
-                      >
-                        <span>{pin.emoji}</span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Controls */}
-                  <div className="map-controls">
-                    {['+', '−', '⊕'].map(ctrl => (
-                      <button
-                        key={ctrl}
-                        className="map-ctrl-btn ripple-container"
-                        onClick={(e) => { addRipple(e); showToast(`Map control: ${ctrl}`); }}
-                      >
-                        {ctrl}
-                      </button>
-                    ))}
-                  </div>
                 </div>
-              </div>
-              <div className="map-legend">
-                {[
-                  { color: '#2563eb', label: 'Food' },
-                  { color: '#e11d48', label: 'Medical' },
-                  { color: '#7c3aed', label: 'Education' },
-                  { color: '#f59e0b', label: 'Shelter' },
-                  { color: '#94a3b8', label: 'Others' },
-                ].map(item => (
-                  <div key={item.label} className="legend-item"
-                    onClick={() => showToast(`Filter: ${item.label}`)}>
-                    <div className="legend-dot" style={{ background: item.color }} />
-                    {item.label}
+              ) : nearbyNeedsList.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#64748b' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(13, 148, 136, 0.1)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#0d9488', marginBottom: 8 }}>
+                    <MapPin size={24} strokeWidth={1.8} />
                   </div>
-                ))}
-              </div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1e293b' }}>
+                    No needs reported within {selectedLocation.radiusKm === 0 ? 'city limits' : `${selectedLocation.radiusKm} km`}
+                  </div>
+                  <p style={{ fontSize: 12, margin: '6px 0 14px', color: '#64748b', lineHeight: 1.4 }}>
+                    Be the first volunteer to report a community need in {selectedLocation.city}!
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleNav('report')}
+                    style={{
+                      background: '#0d9488',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + Report Need in {selectedLocation.city}
+                  </button>
+                </div>
+              ) : (
+                <div className="needs-list">
+                  {nearbyNeedsList.map((need) => (
+                    <div
+                      key={need.id}
+                      className="need-item ripple-container"
+                      onClick={(e) => { addRipple(e); showToast(`📌 ${need.title}`); }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="need-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {getCategoryIcon(need.category || need.title, 18, need.tagColor)}
+                      </div>
+                      <div className="need-body">
+                        <div className="need-title">{need.title}</div>
+                        <div className="need-loc">
+                          📍 {need.location}
+                          {need.distanceKm !== undefined && (
+                            <span style={{ color: '#0d9488', fontWeight: 600, marginLeft: 4 }}>
+                              ({need.distanceKm} km away)
+                            </span>
+                          )}
+                        </div>
+                        <div className="need-loc">{need.timeAgo}</div>
+                      </div>
+                      <span
+                        className="need-tag"
+                        style={{
+                          color: need.tagColor,
+                          borderColor: need.tagBorder,
+                          background: need.tagBg,
+                        }}
+                      >
+                        {need.tagLabel}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Interactive Live Map & Distance Radar */}
+            <LiveMap
+              onToast={showToast}
+              onVolunteer={(need) => showToast(`🤝 Volunteered for: ${need.title}`)}
+            />
 
             {/* Quick Actions + Promo */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -876,11 +1005,11 @@ const Dashboard: React.FC = () => {
                     key={qa.id}
                     className="qa-card ripple-container"
                     style={{ background: qa.bg }}
-                    onClick={(e) => { addRipple(e); showToast(`${qa.icon} ${qa.label}`); handleNav(qa.id === 'report' ? 'report' : qa.id === 'find' ? 'nearby' : qa.id === 'myreports' ? 'activities' : 'activities'); }}
+                    onClick={(e) => { addRipple(e); showToast(`${qa.label}`); handleNav(qa.id === 'report' ? 'report' : qa.id === 'find' ? 'nearby' : qa.id === 'myreports' ? 'activities' : 'activities'); }}
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="qa-icon" style={{ background: qa.iconBg }}>{qa.icon}</div>
+                    <div className="qa-icon" style={{ background: qa.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{qa.icon}</div>
                     <div className="qa-label">{qa.label}</div>
                     <div className="qa-sub">{qa.sub}</div>
                   </div>
@@ -890,7 +1019,9 @@ const Dashboard: React.FC = () => {
                 className="helping-promo ripple-container"
                 onClick={(e) => { addRipple(e); handleNav('nearby'); }}
               >
-                <div className="promo-emoji">❤️</div>
+                <div className="promo-emoji" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
+                  <Heart size={26} strokeWidth={1.8} />
+                </div>
                 <div className="promo-body">
                   <h4>Be a Helping Hand</h4>
                   <p>Support someone in need and make a real impact today.</p>
@@ -918,19 +1049,19 @@ const Dashboard: React.FC = () => {
               <BarChart />
               <div className="impact-stats">
                 {[
-                  { icon: '🤝', num: '120+', lbl: 'People Helped' },
-                  { icon: '💚', num: '2,000+', lbl: 'Lives Touched' },
-                  { icon: '👥', num: '50+', lbl: 'Active Helpers' },
-                  { icon: '🏙️', num: '4', lbl: 'Cities Reached' },
+                  { icon: <HandHeart size={20} strokeWidth={1.8} color="#2563eb" />, num: '120+', lbl: 'People Helped', bg: 'rgba(37, 99, 235, 0.1)' },
+                  { icon: <HeartHandshake size={20} strokeWidth={1.8} color="#10b981" />, num: '2,000+', lbl: 'Lives Touched', bg: 'rgba(16, 185, 129, 0.1)' },
+                  { icon: <Users size={20} strokeWidth={1.8} color="#a855f7" />, num: '50+', lbl: 'Active Helpers', bg: 'rgba(168, 85, 247, 0.1)' },
+                  { icon: <Building2 size={20} strokeWidth={1.8} color="#f59e0b" />, num: '4', lbl: 'Cities Reached', bg: 'rgba(245, 158, 11, 0.1)' },
                 ].map((item) => (
                   <div
                     key={item.lbl}
                     className="impact-stat-item ripple-container"
-                    onClick={(e) => { addRipple(e); showToast(`${item.icon} ${item.num} ${item.lbl}`); }}
+                    onClick={(e) => { addRipple(e); showToast(`${item.num} ${item.lbl}`); }}
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="impact-stat-icon">{item.icon}</div>
+                    <div className="impact-stat-icon" style={{ background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</div>
                     <div>
                       <div className="impact-stat-num">{item.num}</div>
                       <div className="impact-stat-lbl">{item.lbl}</div>
@@ -980,11 +1111,13 @@ const Dashboard: React.FC = () => {
                   <div
                     key={act.id}
                     className="activity-item ripple-container"
-                    onClick={(e) => { addRipple(e); showToast(`✅ ${act.title}`); }}
+                    onClick={(e) => { addRipple(e); showToast(`Activity: ${act.title}`); }}
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="activity-thumb">{act.emoji}</div>
+                    <div className="activity-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {getCategoryIcon(act.title, 18, '#0d9488')}
+                    </div>
                     <div className="activity-body">
                       <div className="activity-title">{act.title}</div>
                       <div className="activity-loc">{act.location}</div>
@@ -999,6 +1132,41 @@ const Dashboard: React.FC = () => {
           </div>
           </>
         )}
+
+        {/* ═══ MAP LEGAL ATTRIBUTION FOOTER ══════════════════════════════════ */}
+        <footer
+          className="dashboard-map-attribution-footer"
+          style={{
+            marginTop: '28px',
+            padding: '16px 8px 24px',
+            textAlign: 'center',
+            fontSize: '12px',
+            color: '#94a3b8',
+            borderTop: '1px solid #e2e8f0',
+          }}
+        >
+          <span>
+            Map data &copy;{' '}
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: '#0d9488', textDecoration: 'none', fontWeight: 500 }}
+            >
+              OpenStreetMap
+            </a>{' '}
+            contributors. Built with{' '}
+            <a
+              href="https://leafletjs.com"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: '#0d9488', textDecoration: 'none', fontWeight: 500 }}
+            >
+              Leaflet
+            </a>
+            .
+          </span>
+        </footer>
         </main>
 
       </div>

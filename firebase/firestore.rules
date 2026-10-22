@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Auth validation helpers
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Cities catalog: Publicly readable; write restricted to admins/seeders
+    match /cities/{cityId} {
+      allow read: if true;
+      allow write: if false; // Managed by seed script or admin backend
+    }
+
+    // City launch waitlist: Anyone can register their email
+    match /cityWaitlist/{id} {
+      allow create: if request.resource.data.email is string
+        && request.resource.data.city is string;
+      allow read, update, delete: if false; // Privacy protection
+    }
+    
+    // Needs collection
+    match /needs/{needId} {
+      allow read: if true;
+      
+      allow create: if isAuthenticated()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.title.size() >= 3
+        && request.resource.data.category is string
+        && request.resource.data.urgency in ['Normal', 'High', 'Critical']
+        && request.resource.data.status == 'Reported';
+        
+      allow update: if isAuthenticated() && (
+        (resource.data.reporterId == request.auth.uid 
+          && request.resource.data.status == resource.data.status 
+          && request.resource.data.statusHistory == resource.data.statusHistory)
+        ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['supporters'])
+          && request.resource.data.supporters.hasAll(resource.data.supporters))
+      );
+      
+      allow delete: if isAuthenticated() 
+        && resource.data.reporterId == request.auth.uid 
+        && resource.data.status == 'Reported';
+    }
+    
+    // User profile documents & saved locations
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+
+      // Subcollection: savedLocations (Home, Office, etc. max 5)
+      match /savedLocations/{savedLocationId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Notification feeds
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false;
+    }
+  }
+}

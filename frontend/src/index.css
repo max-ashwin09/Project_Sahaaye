@@ -542,15 +542,16 @@ body {
 }
 
 /* ============================================================
-   WELCOME HERO BANNER
+   WELCOME HERO BANNER (Original Theme Colors + Grass Landscape Effect)
    ============================================================ */
 .hero-banner {
   border-radius: var(--radius-xl);
   background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #fdf4ff 100%);
   border: 1px solid #e0e7ff;
-  padding: 28px 32px;
+  padding: 26px 32px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 24px;
   position: relative;
   overflow: hidden;
@@ -568,7 +569,11 @@ body {
   pointer-events: none;
 }
 
-.hero-text { flex: 1; }
+.hero-text {
+  flex: 1;
+  position: relative;
+  z-index: 2;
+}
 
 .hero-text h1 {
   font-size: 22px;
@@ -581,25 +586,24 @@ body {
 .hero-text p {
   color: var(--text-secondary);
   font-size: 14px;
+  line-height: 1.5;
 }
 
 .hero-illustration {
   flex-shrink: 0;
-  position: relative;
-}
-
-.hero-scene {
-  width: 220px;
-  height: 80px;
+  width: 320px;
+  height: 105px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 4px;
+  position: relative;
+  z-index: 2;
 }
 
-/* SVG temple skyline */
-.hero-scene svg {
-  filter: drop-shadow(0 2px 8px rgba(37,99,235,0.1));
+.hero-landscape-svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .hero-quote {
@@ -608,8 +612,10 @@ body {
   border: 1px solid rgba(255,255,255,0.8);
   border-radius: var(--radius-md);
   padding: 14px 16px;
-  max-width: 160px;
+  max-width: 165px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .hero-quote p {
@@ -627,6 +633,14 @@ body {
   line-height: 1;
   display: block;
   margin-bottom: 2px;
+}
+
+.hero-quote p {
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.45;
+  font-style: italic;
+  font-weight: 500;
 }
 
 /* ============================================================
@@ -2001,4 +2015,36 @@ body {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* ─── Location Selector & Shimmer Utilities ──────────────────────────────── */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.spin-animation {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.skeleton-box {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
 }

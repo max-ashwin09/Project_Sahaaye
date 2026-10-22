@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Maps API Key Diagnostic Tool - SAHAAYE</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      border: 1px solid #e2e8f0;
+    }
+    h1 {
+      font-size: 20px;
+      margin-top: 0;
+      color: #1e293b;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .badge-testing { background: #e0f2fe; color: #0284c7; }
+    .badge-error { background: #fee2e2; color: #b91c1c; }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    #map {
+      height: 420px;
+      width: 100%;
+      border-radius: 8px;
+      border: 1.5px solid #cbd5e1;
+      background: #e2e8f0;
+      margin: 16px 0;
+    }
+    .log-box {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: monospace;
+      font-size: 13px;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      max-height: 250px;
+    }
+    .log-item { margin: 4px 0; }
+    .log-err { color: #f87171; }
+    .log-warn { color: #fbbf24; }
+    .log-succ { color: #4ade80; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Google Maps API Key Diagnostic & Live Test</h1>
+    <p>Testing API Key: <code>AIzaSyAEe9VW2vuRIhydgzpe52uJhbVchqIT0_M</code></p>
+    <div id="status-badge" class="badge badge-testing">Status: Initializing API & Testing Tiles...</div>
+
+    <div id="map"></div>
+
+    <h3>Diagnostic Log Output:</h3>
+    <div id="log" class="log-box">
+      <div class="log-item">⏳ Loading Google Maps JavaScript API...</div>
+    </div>
+  </div>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const badgeEl = document.getElementById('status-badge');
+
+    function addLog(msg, type = '') {
+      const div = document.createElement('div');
+      div.className = 'log-item ' + (type === 'err' ? 'log-err' : type === 'succ' ? 'log-succ' : type === 'warn' ? 'log-warn' : '');
+      div.innerText = msg;
+      logEl.appendChild(div);
+    }
+
+    // Google Maps Auth Failure handler
+    window.gm_authFailure = function() {
+      badgeEl.className = 'badge badge-error';
+      badgeEl.innerText = '❌ Authentication Failed (gm_authFailure)';
+      addLog('❌ [gm_authFailure]: Google Maps Platform rejected the API Key.', 'err');
+      addLog('⚠️ Reason: Billing is not enabled or project has restrictions on Google Cloud Console.', 'err');
+      addLog('🔗 Solution: Enable billing at https://console.cloud.google.com/project/_/billing/enable', 'warn');
+    };
+
+    function initMap() {
+      addLog('ℹ️ Google Maps JS Library loaded into browser window.', 'succ');
+      try {
+        const indoreCenter = { lat: 22.7196, lng: 75.8577 };
+        const map = new google.maps.Map(document.getElementById('map'), {
+          center: indoreCenter,
+          zoom: 13,
+          mapTypeId: 'roadmap'
+        });
+
+        addLog('✅ Google Maps instance created successfully on #map canvas.', 'succ');
+
+        // Add Circle
+        const circle = new google.maps.Circle({
+          strokeColor: '#2563eb',
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          fillColor: '#3b82f6',
+          fillOpacity: 0.2,
+          map: map,
+          center: indoreCenter,
+          radius: 3000,
+        });
+        addLog('✅ 3km Radius Circle plotted.', 'succ');
+
+        // Add Marker
+        new google.maps.Marker({
+          position: indoreCenter,
+          map: map,
+          title: 'Indore Center (3km Radius)',
+        });
+        addLog('✅ Center Marker plotted.', 'succ');
+
+        setTimeout(() => {
+          if (!badgeEl.className.includes('badge-error')) {
+            badgeEl.className = 'badge badge-success';
+            badgeEl.innerText = '✅ Map Rendered';
+          }
+        }, 1500);
+
+      } catch (e) {
+        badgeEl.className = 'badge badge-error';
+        badgeEl.innerText = '❌ Map Initialization Error';
+        addLog('❌ Map Error: ' + e.message, 'err');
+      }
+    }
+  </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAEe9VW2vuRIhydgzpe52uJhbVchqIT0_M&callback=initMap" async defer></script>
+</body>
+</html>

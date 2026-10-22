@@ -26,6 +26,7 @@ credentials.json
 # Storage & Temporary Files
 storage/*
 !storage/.gitkeep
+backend/storage/*.json
 backend/storage/needs/*
 !backend/storage/needs/.gitkeep
 tmp/
@@ -48,8 +49,3 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
-*.swo
-
-# Coverage & Tests
-coverage/
-.nyc_output/

@@ -1,485 +1,1876 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { API_BASE } from '../services/api';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import {
+  Camera,
+  Video,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  CheckCircle2,
+  MapPin,
+  RefreshCw,
+  AlertCircle,
+  FileText,
+  Layers,
+  Sparkles,
+  Play,
+  Trash2,
+  ShieldCheck,
+  Building,
+  Clock,
+  ArrowRight,
+  Info,
+  EyeOff,
+  Eye,
+  Check,
+} from 'lucide-react';
+import { TRANSLATIONS } from '../utils/i18n';
+import { useLanguageStore } from '../stores/useLanguageStore';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
+import { LiveCameraModal, CameraMediaItem } from '../components/LiveCameraModal';
+import { reverseGeocodeToLocation, detectCurrentLocation } from '../services/geocoding';
+import { blurAllFacesOnCanvas, detectFacesOnCanvas } from '../utils/faceDetector';
 
 interface ReportNeedProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  onViewOnMap?: (lat: number, lng: number) => void;
 }
 
-export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel }) => {
+const DRAFT_STORAGE_KEY = 'sahaaye_draft';
+const NEEDS_STORAGE_KEY = 'sahaaye_needs';
+
+export const ReportNeed: React.FC<ReportNeedProps> = ({ onSuccess, onCancel, onViewOnMap }) => {
+  const { lang } = useLanguageStore();
+  const t = TRANSLATIONS[lang];
+  const { city: headerCity } = useSelectedLocation();
+
+  // ─── Wizard Step: 1 (Photo) -> 2 (Details) -> 3 (Location) -> 4 (Review) ──
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+
+  // ─── Step 1: Media Captures (Live Camera Only) ────────────────────────────
+  const [mediaItems, setMediaItems] = useState<CameraMediaItem[]>([]);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+
+  // ─── Step 2: Need Details ─────────────────────────────────────────────────
   const [title, setTitle] = useState('');
+  const [titleError, setTitleError] = useState<string | null>(null);
+
+  const [category, setCategory] = useState<string>('Food');
+  const [urgency, setUrgency] = useState<'Low' | 'Medium' | 'High'>('Medium');
+
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Food');
-  const [urgency, setUrgency] = useState('Normal');
-  const [locationName, setLocationName] = useState('Detecting GPS location…');
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
-  const [isGpsLoading, setIsGpsLoading] = useState(false);
-  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [descError, setDescError] = useState<string | null>(null);
 
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  // ─── Step 3: Location ─────────────────────────────────────────────────────
+  const [location, setLocation] = useState<{
+    lat: number;
+    lng: number;
+    acc: number;
+    address?: string;
+  } | null>(null);
+  const [landmark, setLandmark] = useState('');
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isRefreshingGps, setIsRefreshingGps] = useState(false);
 
+  // ─── Draft Restore Banner ─────────────────────────────────────────────────
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // ─── Submission & Success State ───────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState<any | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [submittedNeed, setSubmittedNeed] = useState<any | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Automatically fetch live GPS location on component mount
-  const fetchGps = () => {
-    if (!navigator.geolocation) {
-      setGpsError('Geolocation is not supported by your browser.');
-      setLocationName('Indore, Madhya Pradesh');
-      setLatitude(22.7196);
-      setLongitude(75.8577);
-      return;
-    }
-
-    setIsGpsLoading(true);
-    setGpsError(null);
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setLatitude(lat);
-        setLongitude(lng);
-        setIsGpsLoading(false);
-
-        // Reverse geocode to resolve street address
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-          if (res.ok) {
-            const data = await res.json();
-            setLocationName(data.display_name || `${lat.toFixed(5)}°, ${lng.toFixed(5)}°`);
-          } else {
-            setLocationName(`${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E`);
-          }
-        } catch {
-          setLocationName(`${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E`);
-        }
-      },
-      (err) => {
-        setIsGpsLoading(false);
-        setGpsError(err.message || 'Unable to retrieve your location');
-        // Default fallback to Indore
-        setLatitude(22.7196);
-        setLongitude(75.8577);
-        setLocationName('Indore, Madhya Pradesh');
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  };
-
-  useEffect(() => {
-    fetchGps();
+  // ─── Toast Feedback ───────────────────────────────────────────────────────
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3200);
   }, []);
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedPhoto(file);
-      const url = URL.createObjectURL(file);
-      setPhotoPreview(url);
+  // Categories list
+  const CATEGORIES = useMemo(
+    () => [
+      { id: 'Food', label: t.catFood, icon: '🍚' },
+      { id: 'Water', label: t.catWater, icon: '💧' },
+      { id: 'Clothes and blankets', label: t.catClothes, icon: '👕' },
+      { id: 'Medical', label: t.catMedical, icon: '💊' },
+      { id: 'Shelter', label: t.catShelter, icon: '🏠' },
+      { id: 'Education', label: t.catEducation, icon: '📚' },
+      { id: 'Other', label: t.catOther, icon: '🤝' },
+    ],
+    [t]
+  );
+
+  // ─── 1. Load Draft on Mount ───────────────────────────────────────────────
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.title || parsed.desc || parsed.land || parsed.loc) {
+          if (parsed.title) setTitle(parsed.title);
+          if (parsed.cat) setCategory(parsed.cat);
+          if (parsed.urg) setUrgency(parsed.urg);
+          if (parsed.desc) setDescription(parsed.desc);
+          if (parsed.land) setLandmark(parsed.land);
+          if (parsed.loc) setLocation(parsed.loc);
+          setDraftRestored(true);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // ─── 2. Auto-save Draft on Changes ────────────────────────────────────────
+  useEffect(() => {
+    if (submittedNeed) return;
+    try {
+      if (title || description || landmark || location) {
+        const draftData = {
+          title,
+          cat: category,
+          urg: urgency,
+          desc: description,
+          land: landmark,
+          loc: location,
+        };
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
+      }
+    } catch {}
+  }, [title, category, urgency, description, landmark, location, submittedNeed]);
+
+  // Clear draft
+  const handleClearDraft = () => {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+    setTitle('');
+    setCategory('Food');
+    setUrgency('Medium');
+    setDescription('');
+    setLandmark('');
+    setLocation(null);
+    setMediaItems([]);
+    setDraftRestored(false);
+    setCurrentStep(1);
+    setTitleError(null);
+    setDescError(null);
+    setLocationError(null);
+    setMediaError(null);
+  };
+
+  // ─── 3. Sync First Capture's Location to Step 3 ───────────────────────────
+  useEffect(() => {
+    if (mediaItems.length > 0 && !location) {
+      const first = mediaItems[0];
+      const initialLoc = {
+        lat: first.lat,
+        lng: first.lng,
+        acc: first.acc,
+        address: `${headerCity || 'Indore'}, MP`,
+      };
+      setLocation(initialLoc);
+
+      // Attempt reverse geocode to human-friendly street / locality address
+      reverseGeocodeToLocation(first.lat, first.lng)
+        .then((res) => {
+          if (res?.city) {
+            const formatted = res.area ? `${res.area}, ${res.city}, ${res.state}` : `${res.city}, ${res.state}`;
+            setLocation((prev) => (prev ? { ...prev, address: formatted } : prev));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [mediaItems, location, headerCity]);
+
+  // ─── 4. Refresh Location Action ───────────────────────────────────────────
+  const handleRefreshLocation = useCallback(async () => {
+    setIsRefreshingGps(true);
+    setLocationError(null);
+
+    try {
+      const pos = await detectCurrentLocation();
+      const newLoc = {
+        lat: pos.latitude,
+        lng: pos.longitude,
+        acc: pos.accuracy,
+        address: `${headerCity || 'Indore'}, MP`,
+      };
+      setLocation(newLoc);
+
+      try {
+        const res = await reverseGeocodeToLocation(pos.latitude, pos.longitude);
+        if (res?.city) {
+          const formatted = res.area ? `${res.area}, ${res.city}, ${res.state}` : `${res.city}, ${res.state}`;
+          setLocation((prev) => (prev ? { ...prev, address: formatted } : prev));
+        }
+      } catch {}
+      showToast(lang === 'hi' ? '✓ लोकेशन सफलतापूर्वक अपडेट हुई' : '✓ Location updated from live GPS');
+    } catch (err) {
+      console.warn('Refresh location error:', err);
+      setLocationError(t.gpsRequiredNotice);
+    } finally {
+      setIsRefreshingGps(false);
+    }
+  }, [headerCity, t.gpsRequiredNotice, showToast, lang]);
+
+  // ─── Image Upload & Instant Face Blur Option ─────────────────────────────
+  interface PendingBlurImage {
+    originalDataUrl: string;
+    blurredDataUrl: string;
+    currentDataUrl: string;
+    facesCount: number;
+    isBlurred: boolean;
+    lat?: number;
+    lng?: number;
+    acc?: number;
+    existingId?: string;
+  }
+
+  const [pendingBlurImage, setPendingBlurImage] = useState<PendingBlurImage | null>(null);
+  const [isProcessingBlur, setIsProcessingBlur] = useState<string | null>(null);
+
+  const handleBlurCapturedPhoto = async (id: string) => {
+    const item = mediaItems.find((m) => m.id === id);
+    if (!item || item.type !== 'photo') return;
+
+    setIsProcessingBlur(id);
+    try {
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = () => res(true);
+        img.onerror = rej;
+        img.src = item.dataUrl;
+      });
+
+      const originalDataUrl = item.dataUrl;
+      const blurCanvas = document.createElement('canvas');
+      blurCanvas.width = img.width;
+      blurCanvas.height = img.height;
+      const bCtx = blurCanvas.getContext('2d');
+      if (bCtx) {
+        bCtx.drawImage(img, 0, 0);
+        const facesCount = await blurAllFacesOnCanvas(blurCanvas, true);
+        const blurredDataUrl = blurCanvas.toDataURL('image/jpeg', 0.9);
+
+        setPendingBlurImage({
+          originalDataUrl,
+          blurredDataUrl,
+          currentDataUrl: blurredDataUrl,
+          facesCount,
+          isBlurred: true,
+          existingId: id,
+          lat: item.lat,
+          lng: item.lng,
+          acc: item.acc,
+        });
+      }
+    } catch (err) {
+      console.warn('Blur photo error:', err);
+    } finally {
+      setIsProcessingBlur(null);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      setErrorMessage('Please enter a clear title for the need.');
+  const handleConfirmBlurChoice = () => {
+    if (!pendingBlurImage) return;
+
+    if (pendingBlurImage.existingId) {
+      setMediaItems((prev) =>
+        prev.map((m) =>
+          m.id === pendingBlurImage.existingId
+            ? { ...m, dataUrl: pendingBlurImage.currentDataUrl }
+            : m
+        )
+      );
+      showToast(
+        pendingBlurImage.isBlurred
+          ? (lang === 'hi' ? '✓ चेहरा ब्लर लागू किया गया' : '✓ Face blur applied')
+          : (lang === 'hi' ? '✓ मूल फ़ोटो सुरक्षित रखी गई' : '✓ Original photo saved')
+      );
+    } else {
+      const newItem: CameraMediaItem = {
+        id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        type: 'photo',
+        dataUrl: pendingBlurImage.currentDataUrl,
+        lat: pendingBlurImage.lat ?? (location?.lat ?? 22.7196),
+        lng: pendingBlurImage.lng ?? (location?.lng ?? 75.8577),
+        acc: pendingBlurImage.acc ?? (location?.acc ?? 20),
+        timestamp: new Date().toISOString(),
+      };
+      setMediaItems((prev) => [...prev, newItem]);
+      setMediaError(null);
+      showToast(
+        pendingBlurImage.isBlurred
+          ? (lang === 'hi' ? '✓ फ़ोटो चेहरा ब्लर के साथ जोड़ी गई' : '✓ Photo added with privacy face blur')
+          : (lang === 'hi' ? '✓ फ़ोटो सफलतापूर्वक जोड़ी गई' : '✓ Photo added to report')
+      );
+    }
+    setPendingBlurImage(null);
+  };
+
+  const handleCancelBlurChoice = () => {
+    setPendingBlurImage(null);
+  };
+
+  // ─── 5. Step Validation & Navigation ──────────────────────────────────────
+  const handleNext = () => {
+    // Step 1 Validation: At least one photo/video required
+    if (currentStep === 1) {
+      if (mediaItems.length === 0) {
+        setMediaError(t.noMediaError);
+        return;
+      }
+      setMediaError(null);
+      setCurrentStep(2);
       return;
     }
-    if (latitude === null || longitude === null) {
-      setErrorMessage('GPS Location coordinates are mandatory.');
+
+    // Step 2 Validation: Title min 3 chars, Desc max 500 chars
+    if (currentStep === 2) {
+      let hasError = false;
+      if (!title || title.trim().length < 3) {
+        setTitleError(t.titleMinError);
+        hasError = true;
+      } else {
+        setTitleError(null);
+      }
+
+      if (description.length > 500) {
+        setDescError(t.descMaxError);
+        hasError = true;
+      } else {
+        setDescError(null);
+      }
+
+      if (hasError) return;
+      setCurrentStep(3);
       return;
     }
+
+    // Step 3 Validation: Location is required
+    if (currentStep === 3) {
+      if (!location || !location.lat || !location.lng) {
+        setLocationError(t.locationRequiredError);
+        return;
+      }
+      setLocationError(null);
+      setCurrentStep(4);
+      return;
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+    }
+  };
+
+  // ─── 6. Need Submission ───────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!location || mediaItems.length === 0 || title.trim().length < 3) return;
 
     setIsSubmitting(true);
-    setErrorMessage(null);
 
     try {
-      const formData = new FormData();
-      formData.append('title', title.trim());
-      formData.append('description', description.trim());
-      formData.append('category', category);
-      formData.append('urgency', urgency);
-      formData.append('latitude', latitude.toString());
-      formData.append('longitude', longitude.toString());
-      formData.append('location', locationName);
+      const now = new Date();
+      const needId = `need_${Date.now()}`;
 
-      if (selectedPhoto) {
-        formData.append('photo', selectedPhoto);
-      }
+      // Photo base64 array & video count
+      const photosBase64 = mediaItems
+        .filter((m) => m.type === 'photo')
+        .map((m) => m.dataUrl);
+      const videosCount = mediaItems.filter((m) => m.type === 'video').length;
 
-      const res = await fetch(`${API_BASE}/needs`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
+      const newNeed = {
+        id: needId,
+        title: title.trim(),
+        cat: category,
+        urg: urgency,
+        desc: description.trim(),
+        land: landmark.trim(),
+        loc: {
+          lat: location.lat,
+          lng: location.lng,
+          acc: location.acc,
+          approxLat: Number(location.lat.toFixed(2)),
+          approxLng: Number(location.lng.toFixed(2)),
+          address: location.address || `${headerCity || 'Indore'}, MP`,
+          city: headerCity || 'Indore',
+        },
+        photos: photosBase64,
+        videos: videosCount,
+        time: now.toISOString(),
+        status: 'open' as const,
+      };
 
-      const data = await res.json();
+      // 1. Save to localStorage "sahaaye_needs"
+      const existingNeedsRaw = localStorage.getItem(NEEDS_STORAGE_KEY);
+      let existingNeeds: any[] = [];
+      try {
+        if (existingNeedsRaw) existingNeeds = JSON.parse(existingNeedsRaw);
+        if (!Array.isArray(existingNeeds)) existingNeeds = [];
+      } catch {}
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit report');
-      }
+      existingNeeds.unshift(newNeed);
+      localStorage.setItem(NEEDS_STORAGE_KEY, JSON.stringify(existingNeeds));
 
-      setSubmitSuccess(data.need);
+      // 2. Dispatch CustomEvent "sahaaye:need-submitted"
+      window.dispatchEvent(
+        new CustomEvent('sahaaye:need-submitted', {
+          detail: newNeed,
+        })
+      );
+
+      // 3. Clear draft
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+
+      // 4. Update UI to success screen
+      setSubmittedNeed(newNeed);
+      setIsSubmitting(false);
+
       if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Error uploading report to server');
-    } finally {
+    } catch (err) {
+      console.error('Submission error:', err);
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px', fontFamily: 'inherit' }}>
-      {submitSuccess ? (
-        <div style={{
+  // ─── 7. Render Success Screen ─────────────────────────────────────────────
+  if (submittedNeed) {
+    return (
+      <div
+        className="report-need-modal-container"
+        style={{
+          maxWidth: '680px',
+          margin: '24px auto',
           background: '#ffffff',
-          borderRadius: 16,
-          padding: 32,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+          borderRadius: '16px',
+          boxShadow: '0 8px 32px rgba(15, 23, 42, 0.08)',
+          border: '1px solid #e2e8f0',
+          padding: '32px 24px',
           textAlign: 'center',
-          border: '1px solid #e2e8f0'
-        }}>
-          <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
-            Need Successfully Reported & Published!
-          </h2>
-          <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>
-            Your geo-verified humanitarian report has been published to the Sahaaye server and community map.
-          </p>
+          fontFamily: "'Inter', system-ui, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: '50%',
+            background: 'rgba(13, 148, 136, 0.12)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#0d9488',
+            marginBottom: 16,
+          }}
+        >
+          <CheckCircle2 size={36} strokeWidth={2.2} />
+        </div>
 
-          <div style={{
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
+          {t.successTitle}
+        </h2>
+        <p style={{ fontSize: 14, color: '#64748b', maxWidth: 480, margin: '0 auto 24px', lineHeight: 1.5 }}>
+          {t.successSubtitle}
+        </p>
+
+        {/* Report ID & Details Pill Card */}
+        <div
+          style={{
             background: '#f8fafc',
+            border: '1px solid #e2e8f0',
             borderRadius: 12,
             padding: 16,
+            maxWidth: 440,
+            margin: '0 auto 28px',
             textAlign: 'left',
-            marginBottom: 24,
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{ fontWeight: 600, fontSize: 16, color: '#1e293b', marginBottom: 4 }}>
-              {submitSuccess.title}
-            </div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-              📍 {submitSuccess.location} ({submitSuccess.latitude.toFixed(4)}°, {submitSuccess.longitude.toFixed(4)}°)
-            </div>
-            {submitSuccess.imageUrl && (
-              <img
-                src={submitSuccess.imageUrl}
-                alt="Uploaded Need Proof"
-                style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 8, marginTop: 8 }}
-              />
-            )}
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
+            <span style={{ color: '#64748b' }}>{t.reportIdLabel}:</span>
+            <strong style={{ color: '#0d9488', fontFamily: 'monospace' }}>
+              SHY-{submittedNeed.id.slice(-6).toUpperCase()}
+            </strong>
           </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
+            <span style={{ color: '#64748b' }}>{t.categoryLabel}:</span>
+            <strong style={{ color: '#0f172a' }}>{submittedNeed.cat}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+            <span style={{ color: '#64748b' }}>{t.urgencyLabel}:</span>
+            <span
+              style={{
+                fontWeight: 700,
+                color: submittedNeed.urg === 'High' ? '#dc2626' : '#0d9488',
+              }}
+            >
+              {submittedNeed.urg}
+            </span>
+          </div>
+        </div>
 
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
           <button
+            type="button"
             onClick={() => {
-              setSubmitSuccess(null);
-              setTitle('');
-              setDescription('');
-              setSelectedPhoto(null);
-              setPhotoPreview(null);
+              if (onCancel) onCancel();
             }}
             style={{
-              background: '#2563eb',
+              padding: '10px 22px',
+              borderRadius: 10,
+              background: '#0d9488',
               color: '#ffffff',
               border: 'none',
-              padding: '12px 28px',
-              borderRadius: 10,
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: 'pointer'
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 2px 10px rgba(13, 148, 136, 0.3)',
             }}
           >
-            Report Another Need
+            <MapPin size={16} />
+            <span>{t.viewInNearbyBtn}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSubmittedNeed(null);
+              handleClearDraft();
+            }}
+            style={{
+              padding: '10px 22px',
+              borderRadius: 10,
+              background: '#ffffff',
+              color: '#334155',
+              border: '1.5px solid #cbd5e1',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {t.reportAnotherBtn}
           </button>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} style={{
+      </div>
+    );
+  }
+
+  // ─── 8. Main 4-Step Modal ─────────────────────────────────────────────────
+  return (
+    <div
+      className="report-need-modal-container"
+      style={{
+        maxWidth: '720px',
+        margin: '18px auto',
+        background: '#ffffff',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(15, 23, 42, 0.08)',
+        border: '1px solid #e2e8f0',
+        overflow: 'hidden',
+        fontFamily: "'Inter', system-ui, sans-serif",
+      }}
+    >
+      {/* ── Modal Top Header Bar ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 20px',
+          borderBottom: '1px solid #f1f5f9',
           background: '#ffffff',
-          borderRadius: 20,
-          padding: '28px 24px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
-          border: '1px solid #e2e8f0'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                Report Community Need
-              </h2>
-              <span style={{ fontSize: 12, color: '#64748b' }}>
-                Geo-Verified Humanitarian Aid · Live Server Upload
-              </span>
-            </div>
-            {onCancel && (
-              <button
-                type="button"
-                onClick={onCancel}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#94a3b8' }}
-              >
-                ✕
-              </button>
-            )}
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            {lang === 'hi' ? 'ज़रूरत रिपोर्ट करें' : 'Report Community Need'}
+          </h2>
+          <span style={{ fontSize: 12, color: '#64748b' }}>
+            {lang === 'hi' ? 'भू-सत्यापित सामाजिक सेवा' : 'Geo-verified social seva network'}
+          </span>
+        </div>
+
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            title={t.closeModal}
+            aria-label={t.closeModal}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              background: '#f1f5f9',
+              border: 'none',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
+
+      {/* ── Action Feedback Toast ── */}
+      {toastMessage && (
+        <div
+          style={{
+            background: '#042f2e',
+            color: '#2dd4bf',
+            borderBottom: '1px solid #0d9488',
+            padding: '8px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            animation: 'fadeIn 0.2s ease',
+          }}
+        >
+          <CheckCircle2 size={16} color="#2dd4bf" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* ── Restored Draft Banner ── */}
+      {draftRestored && (
+        <div
+          style={{
+            background: 'rgba(13, 148, 136, 0.09)',
+            borderBottom: '1px solid rgba(13, 148, 136, 0.25)',
+            padding: '9px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 12.5,
+            color: '#0f766e',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Sparkles size={15} color="#0d9488" />
+            <span>{t.draftRestoredBanner}</span>
           </div>
+          <button
+            type="button"
+            onClick={handleClearDraft}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#b91c1c',
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            {t.clearDraftBtn}
+          </button>
+        </div>
+      )}
 
-          {errorMessage && (
-            <div style={{
-              background: '#fef2f2',
-              color: '#dc2626',
-              padding: '10px 14px',
-              borderRadius: 8,
-              fontSize: 13,
-              marginBottom: 16,
-              border: '1px solid #fecaca'
-            }}>
-              ⚠️ {errorMessage}
-            </div>
-          )}
+      {/* ── Stepper Indicator ── */}
+      <div
+        style={{
+          display: 'flex',
+          borderBottom: '1px solid #e2e8f0',
+          background: '#f8fafc',
+          overflowX: 'auto',
+        }}
+      >
+        {[
+          { num: 1, label: t.step1 },
+          { num: 2, label: t.step2 },
+          { num: 3, label: t.step3 },
+          { num: 4, label: t.step4 },
+        ].map((s) => {
+          const isActive = currentStep === s.num;
+          const isDone = currentStep > s.num;
 
-          {/* Photo Capture & Preview */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 8 }}>
-              Need Proof / Photo *
-            </label>
-
-            {photoPreview ? (
-              <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', maxHeight: 220, background: '#000' }}>
-                <img src={photoPreview} alt="Preview" style={{ width: '100%', height: 220, objectFit: 'cover' }} />
-                <button
-                  type="button"
-                  onClick={() => { setSelectedPhoto(null); setPhotoPreview(null); }}
-                  style={{
-                    position: 'absolute',
-                    top: 10,
-                    right: 10,
-                    background: 'rgba(15,23,42,0.85)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 20,
-                    padding: '6px 12px',
-                    fontSize: 12,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Change Photo
-                </button>
-                <div style={{
-                  position: 'absolute',
-                  bottom: 10,
-                  left: 10,
-                  background: 'rgba(15,23,42,0.85)',
-                  color: '#10b981',
-                  borderRadius: 20,
-                  padding: '4px 10px',
-                  fontSize: 11,
-                  fontWeight: 600
-                }}>
-                  ✓ Geo-Stamped Proof
-                </div>
-              </div>
-            ) : (
-              <div
-                onClick={() => fileInputRef.current?.click()}
+          return (
+            <div
+              key={s.num}
+              style={{
+                flex: 1,
+                minWidth: 120,
+                padding: '12px 10px',
+                textAlign: 'center',
+                borderBottom: isActive ? '3px solid #0d9488' : '3px solid transparent',
+                background: isActive ? '#ffffff' : 'transparent',
+                color: isActive ? '#0d9488' : isDone ? '#0f172a' : '#94a3b8',
+                fontWeight: isActive ? 700 : 600,
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span
                 style={{
-                  border: '2px dashed #cbd5e1',
-                  borderRadius: 12,
-                  padding: '30px 20px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  background: '#f8fafc',
-                  transition: 'border-color 0.2s'
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: isActive ? '#0d9488' : isDone ? '#10b981' : '#cbd5e1',
+                  color: '#ffffff',
+                  fontSize: 11,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
                 }}
               >
-                <div style={{ fontSize: 36, marginBottom: 8 }}>📷</div>
-                <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 14 }}>
-                  Click to Take Photo or Upload Image
+                {isDone ? '✓' : s.num}
+              </span>
+              <span>{s.label}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Step Body Content ── */}
+      <div style={{ padding: '24px 20px', minHeight: '340px' }}>
+        {/* ════ STEP 1: MEDIA (Live Camera Only) ════ */}
+        {currentStep === 1 && (
+          <div>
+            <div style={{ marginBottom: 18 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                {t.photoStepTitle}
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
+                {t.photoStepSubtitle}
+              </p>
+            </div>
+
+            {/* Media Action Button: Live Camera Only */}
+            <div style={{ textAlign: 'center', padding: '24px 16px', background: '#f8fafc', borderRadius: 14, border: '2px dashed #cbd5e1' }}>
+              <button
+                type="button"
+                onClick={() => setIsCameraOpen(true)}
+                style={{
+                  padding: '14px 28px',
+                  borderRadius: 12,
+                  background: '#0d9488',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)',
+                  transition: 'transform 0.1s ease',
+                }}
+              >
+                <Camera size={20} />
+                <span>{t.takePhotoVideoBtn}</span>
+              </button>
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: '10px 0 0' }}>
+                {lang === 'hi'
+                  ? 'लाइव कैमरा खोलता है और हर फोटो पर GPS जियो-स्टैम्प दर्ज करता है (अधिकतम 5 आइटम)'
+                  : 'Opens live full-screen camera and burns GPS coordinates into every photo (Max 5 captures)'}
+              </p>
+            </div>
+
+            {/* Inline Error Message */}
+            {mediaError && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#dc2626',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <AlertCircle size={16} />
+                <span>{mediaError}</span>
+              </div>
+            )}
+
+            {/* Captured Items Thumbnails */}
+            {mediaItems.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                    {t.itemsCount} ({mediaItems.length}/5)
+                  </span>
+                  {mediaItems.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraOpen(true)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#0d9488',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Camera size={13} />
+                      <span>+ {lang === 'hi' ? 'कैमरा' : 'Camera'}</span>
+                    </button>
+                  )}
                 </div>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                  Camera opens directly on mobile. Supports JPG, PNG, WebP up to 10MB.
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
+                  {mediaItems.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        position: 'relative',
+                        height: 90,
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                        border: '1.5px solid #e2e8f0',
+                        background: '#0f172a',
+                      }}
+                    >
+                      <img
+                        src={item.dataUrl}
+                        alt={`Capture ${idx + 1}`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      {item.type === 'video' && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 4,
+                            left: 4,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: 'rgba(220, 38, 38, 0.9)',
+                            color: '#ffffff',
+                            fontSize: 10,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {t.videoBadge}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaItems((prev) => prev.filter((m) => m.id !== item.id));
+                        }}
+                        title={t.removeMediaBtn}
+                        style={{
+                          position: 'absolute',
+                          top: 4,
+                          right: 4,
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: 'rgba(239, 68, 68, 0.9)',
+                          border: 'none',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          zIndex: 2,
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+
+                      {/* Manual Blur Face Privacy Action on Captured Photo */}
+                      {item.type === 'photo' && (
+                        <button
+                          type="button"
+                          onClick={() => handleBlurCapturedPhoto(item.id)}
+                          disabled={isProcessingBlur === item.id}
+                          title={lang === 'hi' ? 'चेहरे ब्लर करें (गोपनीयता)' : 'Blur faces for privacy'}
+                          style={{
+                            position: 'absolute',
+                            bottom: 4,
+                            left: 4,
+                            padding: '3px 6px',
+                            borderRadius: 6,
+                            background: 'rgba(15, 23, 42, 0.88)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.4)',
+                            fontSize: 10,
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            cursor: isProcessingBlur === item.id ? 'wait' : 'pointer',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2,
+                          }}
+                        >
+                          <EyeOff size={11} />
+                          <span>
+                            {isProcessingBlur === item.id
+                              ? (lang === 'hi' ? 'ब्लर...' : 'Blurring...')
+                              : (lang === 'hi' ? 'ब्लर चेहरा' : 'Blur Face')}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoSelect}
-                  style={{ display: 'none' }}
-                />
               </div>
             )}
           </div>
+        )}
 
-          {/* GPS Coordinates Badge */}
-          <div style={{
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: 12,
-            padding: 12,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 20
-          }}>
+        {/* ════ STEP 2: DETAILS ════ */}
+        {currentStep === 2 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ marginBottom: 4 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                {t.detailsStepTitle}
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
+                {t.detailsStepSubtitle}
+              </p>
+            </div>
+
+            {/* Need Title (min 3 chars) */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                  {isGpsLoading ? 'ACQUIRING GPS LOCK…' : 'GPS LOCKED & GEO-STAMPED'}
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                {t.titleLabel}
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (titleError && e.target.value.trim().length >= 3) {
+                    setTitleError(null);
+                  }
+                }}
+                placeholder={t.titlePlaceholder}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: titleError ? '1.5px solid #dc2626' : '1.5px solid #cbd5e1',
+                  fontSize: 14,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              {titleError && (
+                <span style={{ display: 'block', color: '#dc2626', fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+                  {titleError}
+                </span>
+              )}
+            </div>
+
+            {/* Category */}
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                {t.categoryLabel}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: 8 }}>
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategory(cat.id)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: category === cat.id ? '2px solid #0d9488' : '1px solid #e2e8f0',
+                      background: category === cat.id ? '#f0fdfa' : '#ffffff',
+                      color: category === cat.id ? '#0d9488' : '#334155',
+                      fontSize: 12.5,
+                      fontWeight: category === cat.id ? 700 : 500,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>{cat.icon}</span>
+                    <span>{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Urgency Chips: Low, Medium, High (High in red!) */}
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                {t.urgencyLabel}
+              </label>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {/* Low Chip */}
+                <button
+                  type="button"
+                  onClick={() => setUrgency('Low')}
+                  style={{
+                    flex: 1,
+                    padding: '9px 14px',
+                    borderRadius: 10,
+                    border: urgency === 'Low' ? '2px solid #10b981' : '1px solid #e2e8f0',
+                    background: urgency === 'Low' ? '#ecfdf5' : '#ffffff',
+                    color: urgency === 'Low' ? '#047857' : '#64748b',
+                    fontSize: 13,
+                    fontWeight: urgency === 'Low' ? 700 : 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🟢 {t.urgencyLow}
+                </button>
+
+                {/* Medium Chip */}
+                <button
+                  type="button"
+                  onClick={() => setUrgency('Medium')}
+                  style={{
+                    flex: 1,
+                    padding: '9px 14px',
+                    borderRadius: 10,
+                    border: urgency === 'Medium' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                    background: urgency === 'Medium' ? '#fffbeb' : '#ffffff',
+                    color: urgency === 'Medium' ? '#b45309' : '#64748b',
+                    fontSize: 13,
+                    fontWeight: urgency === 'Medium' ? 700 : 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🟡 {t.urgencyMedium}
+                </button>
+
+                {/* High Chip (Styled specifically in RED as requested!) */}
+                <button
+                  type="button"
+                  onClick={() => setUrgency('High')}
+                  style={{
+                    flex: 1,
+                    padding: '9px 14px',
+                    borderRadius: 10,
+                    border: urgency === 'High' ? '2px solid #dc2626' : '1px solid #fecaca',
+                    background: urgency === 'High' ? '#fef2f2' : '#ffffff',
+                    color: '#dc2626',
+                    fontSize: 13,
+                    fontWeight: urgency === 'High' ? 800 : 600,
+                    cursor: 'pointer',
+                    boxShadow: urgency === 'High' ? '0 0 10px rgba(220, 38, 38, 0.2)' : 'none',
+                  }}
+                >
+                  🔴 {t.urgencyHigh}
+                </button>
+              </div>
+            </div>
+
+            {/* Description (max 500 chars) */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                  {t.descriptionLabel}
+                </label>
+                <span style={{ fontSize: 12, color: description.length > 500 ? '#dc2626' : '#94a3b8' }}>
+                  {description.length} / 500 {t.descCharCount}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: '#15803d', marginTop: 3 }}>
-                📍 {locationName}
+              <textarea
+                rows={4}
+                value={description}
+                maxLength={500}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (descError && e.target.value.length <= 500) setDescError(null);
+                }}
+                placeholder={t.descriptionPlaceholder}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: descError ? '1.5px solid #dc2626' : '1.5px solid #cbd5e1',
+                  fontSize: 13.5,
+                  outline: 'none',
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                }}
+              />
+              {descError && (
+                <span style={{ display: 'block', color: '#dc2626', fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+                  {descError}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ════ STEP 3: LOCATION ════ */}
+        {currentStep === 3 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                {t.locationStepTitle}
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
+                {t.locationStepSubtitle}
+              </p>
+            </div>
+
+            {/* GPS Locked Card */}
+            <div
+              style={{
+                borderRadius: 12,
+                border: '1.5px solid #0d9488',
+                background: '#f0fdfa',
+                padding: '16px 18px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    style={{
+                      width: 9,
+                      height: 9,
+                      borderRadius: '50%',
+                      background: '#10b981',
+                      boxShadow: '0 0 8px #10b981',
+                    }}
+                  />
+                  <strong style={{ fontSize: 12, color: '#0f766e', letterSpacing: 0.5 }}>
+                    {location ? t.gpsCardLocked : t.gpsCardAcquiring}
+                  </strong>
+                </div>
+
+                {/* Refresh Location Button */}
+                <button
+                  type="button"
+                  onClick={handleRefreshLocation}
+                  disabled={isRefreshingGps}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    background: '#ffffff',
+                    border: '1px solid #0d9488',
+                    color: '#0d9488',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: isRefreshingGps ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <RefreshCw size={13} className={isRefreshingGps ? 'spin' : ''} />
+                  <span>{t.refreshLocationBtn}</span>
+                </button>
               </div>
-              {latitude !== null && longitude !== null && (
-                <div style={{ fontSize: 11, color: '#4ade80', marginTop: 2 }}>
-                  {latitude.toFixed(5)}° N, {longitude.toFixed(5)}° E
+
+              {location ? (
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
+                    📍 {location.address || `${headerCity || 'Indore'}, MP`}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#475569' }}>
+                    {t.exactCoordsLabel}:{' '}
+                    <strong>
+                      {location.lat.toFixed(5)}°, {location.lng.toFixed(5)}°
+                    </strong>{' '}
+                    • {t.accuracyLabel}: ±{location.acc}m
+                  </div>
+                  <div style={{ fontSize: 12, color: '#0d9488', marginTop: 4 }}>
+                    {t.approxCoordsLabel}:{' '}
+                    <strong>
+                      {location.lat.toFixed(2)}°, {location.lng.toFixed(2)}°
+                    </strong>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: '#64748b' }}>
+                  {t.gpsCardAcquiring}
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={fetchGps}
+
+            {/* Optional Landmark Text Field */}
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                {t.landmarkLabel}
+              </label>
+              <input
+                type="text"
+                value={landmark}
+                onChange={(e) => setLandmark(e.target.value)}
+                placeholder={t.landmarkPlaceholder}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: 14,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Public View Dignity Notice */}
+            <div
               style={{
-                background: '#ffffff',
-                border: '1px solid #86efac',
-                color: '#166534',
-                padding: '6px 12px',
+                padding: '10px 14px',
                 borderRadius: 8,
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer'
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                color: '#64748b',
+                lineHeight: 1.4,
               }}
             >
-              Refresh GPS ↻
-            </button>
-          </div>
-
-          {/* Title */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-              Need Title *
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Urgent food ration needed for elderly resident"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid #cbd5e1',
-                fontSize: 14,
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-
-          {/* Category & Urgency Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Category *
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 10,
-                  border: '1px solid #cbd5e1',
-                  fontSize: 14,
-                  background: '#ffffff'
-                }}
-              >
-                <option value="Food">🍚 Food & Ration</option>
-                <option value="Medical">💊 Medical & Healthcare</option>
-                <option value="Education">📚 Education & Books</option>
-                <option value="Shelter">🏠 Shelter & Clothing</option>
-                <option value="Elderly">👴 Elderly Care</option>
-                <option value="Others">🤝 Others / Community</option>
-              </select>
+              {t.approximateNotice}
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Urgency Level *
-              </label>
-              <select
-                value={urgency}
-                onChange={(e) => setUrgency(e.target.value)}
+            {locationError && (
+              <div
                 style={{
-                  width: '100%',
                   padding: '10px 14px',
-                  borderRadius: 10,
-                  border: '1px solid #cbd5e1',
-                  fontSize: 14,
-                  background: '#ffffff'
+                  borderRadius: 8,
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#dc2626',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                <option value="Normal">🟢 Normal</option>
-                <option value="Urgent">🟠 Urgent (Within 24h)</option>
-                <option value="Emergency">🔴 Critical Emergency</option>
-              </select>
+                <AlertCircle size={16} />
+                <span>{locationError}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════ STEP 4: REVIEW ════ */}
+        {currentStep === 4 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                {t.reviewStepTitle}
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
+                {t.reviewStepSubtitle}
+              </p>
+            </div>
+
+            {/* Media Thumbnails Strip */}
+            <div>
+              <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                {t.reviewPhotosTitle} ({mediaItems.length})
+              </label>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                {mediaItems.map((item, i) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      position: 'relative',
+                      border: '1.5px solid #0d9488',
+                      background: '#0f172a',
+                    }}
+                  >
+                    <img
+                      src={item.dataUrl}
+                      alt={`Thumb ${i + 1}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    {item.type === 'video' && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Play size={14} color="#ffffff" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Summary Details Card */}
+            <div
+              style={{
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  {t.titleLabel}
+                </span>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{title}</div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                    {t.categoryLabel}
+                  </span>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{category}</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                    {t.urgencyLabel}
+                  </span>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: urgency === 'High' ? '#dc2626' : urgency === 'Medium' ? '#d97706' : '#10b981',
+                    }}
+                  >
+                    {urgency}
+                  </div>
+                </div>
+              </div>
+
+              {description && (
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                    {t.descriptionLabel}
+                  </span>
+                  <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.4 }}>{description}</div>
+                </div>
+              )}
+
+              {landmark && (
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                    {t.landmarkLabel}
+                  </span>
+                  <div style={{ fontSize: 13, color: '#334155' }}>📍 {landmark}</div>
+                </div>
+              )}
+
+              {location && (
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                    {t.reviewLocationTitle}
+                  </span>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0d9488' }}>
+                    {location.address || `${headerCity || 'Indore'}, MP`}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}>
+                    GPS: {location.lat.toFixed(5)}°, {location.lng.toFixed(5)}° (±{location.acc}m)
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Description */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-              Description & Specific Requirements
-            </label>
-            <textarea
-              rows={4}
-              placeholder="Describe the situation, number of people affected, and exact instructions for volunteers…"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid #cbd5e1',
-                fontSize: 14,
-                boxSizing: 'border-box',
-                resize: 'vertical'
-              }}
-            />
-          </div>
-
-          {/* Submit Button */}
+      {/* ── Modal Footer Bar: Back & Next / Submit ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 20px',
+          borderTop: '1px solid #e2e8f0',
+          background: '#ffffff',
+        }}
+      >
+        {currentStep > 1 ? (
           <button
-            type="submit"
-            disabled={isSubmitting}
+            type="button"
+            onClick={handleBack}
             style={{
-              width: '100%',
-              background: '#2563eb',
-              color: '#ffffff',
+              padding: '9px 18px',
+              borderRadius: 10,
+              background: '#f1f5f9',
               border: 'none',
-              padding: '14px 20px',
-              borderRadius: 12,
-              fontWeight: 700,
-              fontSize: 15,
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              color: '#334155',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
               display: 'flex',
-              justifyContent: 'center',
               alignItems: 'center',
-              gap: 8,
-              opacity: isSubmitting ? 0.75 : 1
+              gap: 6,
             }}
           >
-            {isSubmitting ? (
-              <span>Uploading to Sahaaye Server…</span>
-            ) : (
-              <span>Publish Need with Geo-Stamp 🚀</span>
-            )}
+            <ChevronLeft size={16} />
+            <span>{t.backBtn}</span>
           </button>
-        </form>
+        ) : (
+          <div />
+        )}
+
+        {currentStep < 4 ? (
+          <button
+            type="button"
+            onClick={handleNext}
+            style={{
+              padding: '10px 22px',
+              borderRadius: 10,
+              background: '#0d9488',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 2px 8px rgba(13, 148, 136, 0.25)',
+            }}
+          >
+            <span>{t.nextBtn}</span>
+            <ChevronRight size={16} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            style={{
+              padding: '11px 24px',
+              borderRadius: 10,
+              background: '#0d9488',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 4px 14px rgba(13, 148, 136, 0.35)',
+            }}
+          >
+            <span>{isSubmitting ? t.submittingNeed : t.submitNeedBtn}</span>
+            <ArrowRight size={16} />
+          </button>
+        )}
+      </div>
+
+      {/* ── Fullscreen Live Camera Modal ── */}
+      <LiveCameraModal
+        isOpen={isCameraOpen}
+        initialItems={mediaItems}
+        onClose={() => setIsCameraOpen(false)}
+        onDone={async (items) => {
+          setMediaItems(items);
+          if (items.length > 0) setMediaError(null);
+
+          // Find newly captured photo to offer Face Blur Option Modal
+          const newlyCaptured = items.filter(
+            (it) => it.type === 'photo' && !mediaItems.some((m) => m.id === it.id)
+          );
+          if (newlyCaptured.length > 0) {
+            const target = newlyCaptured[newlyCaptured.length - 1];
+            try {
+              const img = new Image();
+              await new Promise((res, rej) => {
+                img.onload = () => res(true);
+                img.onerror = rej;
+                img.src = target.dataUrl;
+              });
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                const faces = await detectFacesOnCanvas(canvas);
+                if (faces.length > 0) {
+                  const originalDataUrl = target.dataUrl;
+                  const blurCanvas = document.createElement('canvas');
+                  blurCanvas.width = img.width;
+                  blurCanvas.height = img.height;
+                  const bCtx = blurCanvas.getContext('2d');
+                  if (bCtx) {
+                    bCtx.drawImage(img, 0, 0);
+                    await blurAllFacesOnCanvas(blurCanvas, true);
+                    const blurredDataUrl = blurCanvas.toDataURL('image/jpeg', 0.9);
+                    setPendingBlurImage({
+                      originalDataUrl,
+                      blurredDataUrl,
+                      currentDataUrl: blurredDataUrl,
+                      facesCount: faces.length,
+                      isBlurred: true,
+                      existingId: target.id,
+                      lat: target.lat,
+                      lng: target.lng,
+                      acc: target.acc,
+                    });
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('Face blur auto-detect note:', err);
+            }
+          }
+        }}
+      />
+
+      {/* ════ FACE BLUR OPTION MODAL (Appears on Image Upload & Edit) ════ */}
+      {pendingBlurImage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10006,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              background: '#ffffff',
+              borderRadius: 18,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '92vh',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#f8fafc',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: 'rgba(13, 148, 136, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#0d9488',
+                  }}
+                >
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                    {t.blurModalTitle}
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>
+                    {t.blurModalSubtitle}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelBlurChoice}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 4,
+                  borderRadius: 6,
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body / Preview */}
+            <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Detection status tag */}
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: pendingBlurImage.facesCount > 0 ? '#ecfdf5' : '#f8fafc',
+                  border: pendingBlurImage.facesCount > 0 ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+                  color: pendingBlurImage.facesCount > 0 ? '#065f46' : '#64748b',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                {pendingBlurImage.facesCount > 0 ? (
+                  <>
+                    <CheckCircle2 size={16} color="#059669" />
+                    <span>✓ {pendingBlurImage.facesCount} {t.facesDetectedBadge}</span>
+                  </>
+                ) : (
+                  <>
+                    <Info size={16} color="#64748b" />
+                    <span>{t.noFacesDetectedBadge}</span>
+                  </>
+                )}
+              </div>
+
+              {/* Live Canvas / Image Preview */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: 240,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  background: '#0f172a',
+                  border: '1.5px solid #cbd5e1',
+                }}
+              >
+                <img
+                  src={pendingBlurImage.currentDataUrl}
+                  alt="Upload preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    left: 8,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: pendingBlurImage.isBlurred ? 'rgba(13, 148, 136, 0.9)' : 'rgba(15, 23, 42, 0.85)',
+                    color: '#ffffff',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  {pendingBlurImage.isBlurred ? (
+                    <>
+                      <EyeOff size={12} />
+                      <span>{lang === 'hi' ? 'ब्लर लागू' : 'Blur Active'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye size={12} />
+                      <span>{lang === 'hi' ? 'मूल फ़ोटो' : 'Original Photo'}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Selection Options (Cards) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Option 1: Blur Faces */}
+                <div
+                  onClick={() =>
+                    setPendingBlurImage((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            currentDataUrl: prev.blurredDataUrl,
+                            isBlurred: true,
+                          }
+                        : null
+                    )
+                  }
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: pendingBlurImage.isBlurred ? '2px solid #0d9488' : '1.5px solid #e2e8f0',
+                    background: pendingBlurImage.isBlurred ? '#f0fdfa' : '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        background: pendingBlurImage.isBlurred ? '#0d9488' : '#f1f5f9',
+                        color: pendingBlurImage.isBlurred ? '#ffffff' : '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <EyeOff size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>
+                        {t.blurOptionBlur}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        {t.blurOptionBlurDesc}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      border: pendingBlurImage.isBlurred ? '5px solid #0d9488' : '2px solid #cbd5e1',
+                      background: '#ffffff',
+                    }}
+                  />
+                </div>
+
+                {/* Option 2: Original Photo */}
+                <div
+                  onClick={() =>
+                    setPendingBlurImage((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            currentDataUrl: prev.originalDataUrl,
+                            isBlurred: false,
+                          }
+                        : null
+                    )
+                  }
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: !pendingBlurImage.isBlurred ? '2px solid #0d9488' : '1.5px solid #e2e8f0',
+                    background: !pendingBlurImage.isBlurred ? '#f0fdfa' : '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        background: !pendingBlurImage.isBlurred ? '#0d9488' : '#f1f5f9',
+                        color: !pendingBlurImage.isBlurred ? '#ffffff' : '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Eye size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>
+                        {t.blurOptionOriginal}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        {t.blurOptionOriginalDesc}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      border: !pendingBlurImage.isBlurred ? '5px solid #0d9488' : '2px solid #cbd5e1',
+                      background: '#ffffff',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div
+              style={{
+                padding: '14px 20px',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: 10,
+                background: '#f8fafc',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCancelBlurChoice}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 8,
+                  border: '1.5px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t.blurModalCancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBlurChoice}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#0d9488',
+                  color: '#ffffff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 2px 6px rgba(13, 148, 136, 0.25)',
+                }}
+              >
+                <Check size={16} />
+                <span>{t.blurModalConfirm}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
