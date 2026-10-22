@@ -9,8 +9,10 @@
     "preview": "vite preview",
     "test": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
-    "@sahaaye/shared": "*",
     "@types/leaflet": "^1.9.22",
     "geofire-common": "^6.0.0",
     "leaflet": "^1.9.4",
